@@ -571,6 +571,9 @@
 (use-package markdown-mode
   :defer t)
 
+(use-package dockerfile-mode
+  :defer t)
+
 ;; indent guide
 (use-package highlight-indent-guides
   :defer t
