@@ -571,6 +571,17 @@
 (use-package markdown-mode
   :defer t)
 
+;; indent guide
+(use-package highlight-indent-guides
+  :defer t
+  :config
+  (setq highlight-indent-guides-method 'character)
+  (set-face-background 'highlight-indent-guides-odd-face "darkgray")
+  (set-face-background 'highlight-indent-guides-even-face "dimgray")
+  (set-face-foreground 'highlight-indent-guides-character-face "dimgray")
+  :hook
+  (prog-mode . highlight-indent-guides-mode))
+
 ;; folding
 (use-package hideshow
   :defer t
