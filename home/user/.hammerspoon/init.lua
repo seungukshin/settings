@@ -82,7 +82,7 @@ yabai:bind({}, 's', function() yabai:replaceApps(); yabai:clear() end)
 yabai:bind({}, 't', function() yabai:focusPreviousWindow(nil); yabai:clear() end)
 
 yabai:bind({}, 'c', function() yabai:createSpace(nil); yabai:clear() end)
-yabai:bind({}, 'k', function() yabai:destroyActiveSpace(nil); yabai:clear() end)
+yabai:bind({}, 'x', function() yabai:destroyActiveSpace(nil); yabai:clear() end)
 
 yabai:bind({}, 'm', function() yabai:toggleFullscreen(nil); yabai:clear() end)
 

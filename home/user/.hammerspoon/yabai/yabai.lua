@@ -38,15 +38,13 @@ end
 -- cb: callback function
 -- return: none
 function Yabai:run(args, cb)
-  self.log.d('yabai', table.unpack(args))
+  self.log.d('yabai:run:', table.unpack(args))
   hs.task.new(self.yabai, function(exitCode, stdOut, stdErr)
-		self.log.d('exit code:', exitCode)
-		self.log.d('stderr:', stdErr)
-		self.log.d('stdout:', stdOut)
+		self.log.d('yabai:run:exitCode:', exitCode)
+		self.log.d('yabai:run:stdErr:', stdErr)
+		self.log.d('yabai:run:stdOut:', stdOut)
 		if cb ~= nil then
 		  cb()
-		else
-		  self:displaySpaces()
 		end
   end, args):start()
 end
@@ -55,10 +53,11 @@ end
 -- cmd: command string
 -- return: output string
 function Yabai:execute(cmd)
-  self.log.d(cmd)
+  self.log.d('yabai:execute:', cmd)
   local handle = io.popen(cmd, 'r')
   local output = handle:read('*a')
   handle:close()
+  self.log.d('yabai:execute:output:', output)
   return output
 end
 
@@ -164,8 +163,39 @@ end
 -- cb: callback function
 -- return: none
 function Yabai:showSpaceInActiveDisplay(space, cb)
+  -- if the space is in the other space already
+  if self.labels['label-' .. tostring(space)].visible then
+    spaceIndex = self.labels['label-' .. tostring(space)].index
+    spaceDisplay = self.labels['label-' .. tostring(space)].display
+    newSpace = nil
+    -- find new space to show in the other display among not visible ones in the same display
+    for k, v in pairs(self.labels) do
+      if v.index ~= spaceIndex and v.display == spaceDisplay then
+	newSpace = k
+      end
+    end
+    -- find new space to show in the other display among not visible ones in the other display
+    if newSpace == nil then
+      for k, v in pairs(self.labels) do
+	if v.index ~= spaceIndex and v.visible ~= true then
+	  newSpace = k
+	end
+      end
+    end
+    -- show new space in the other display
+    if newSpace ~= nil then
+      -- send new space to the other display
+      self:run({'-m', 'space', newSpace, '--display', tostring(spaceDisplay)}, function()
+	  -- show new space in the other display
+	  self:run({'-m', 'display', tostring(spaceDisplay), '--space', newSpace}, nil)
+      end)
+    end
+  end
+
   display = self:query('--displays --display', 'index')
+  -- send the space to the display
   self:run({'-m', 'space', 'label-' .. tostring(space), '--display', tostring(display)}, function()
+      -- show the space in the display
       self:run({'-m', 'display', '--space', 'label-' .. tostring(space)}, cb)
   end)
 end
@@ -176,9 +206,13 @@ end
 -- cb: callback function
 -- return: none
 function Yabai:showWindowIdInDisplay(windowId, display, cb)
+  -- find window's space
   spaceIndex = self:query('--windows --window ' .. tostring(windowId), 'space')
+  -- send the space in the display
   self:run({'-m', 'space', tostring(spaceIndex), '--display', tostring(display)}, function()
+      -- show the space in the display
       self:run({'-m', 'display', '--space', tostring(spaceIndex)}, function()
+	  -- focus the window
 	  self:run({'-m', 'windows', '--focus', tostring(windowId)}, cb)
       end)
   end)
@@ -198,21 +232,19 @@ end
 -- get the unused space label
 -- return: the unused space label
 function Yabai:findUnusedLabel()
-  for i = 1, 10 do
-    local label = 'label-' .. tostring(i)
-    if self.labels[label] == nil then
-      return label
-    end
+  i = 1
+  while self.labels['label-' .. tostring(i)] ~= nil do
+    i = i + 1
   end
-  self.log.e('cannot find an unused label')
-  return ''
+  return 'label-' .. tostring(i)
 end
 
 -- reset canvases
+-- index: index of double buffering canvases
 -- return: none
-function Yabai:resetCanvases()
-  for _, c in pairs(self.canvases) do c:delete() end
-  self.canvases = {}
+function Yabai:resetCanvases(index)
+  for _, c in pairs(self.canvases[index]) do c:delete() end
+  self.canvases[index] = {}
   for k, v in pairs(self.displays) do
     local w = self.labels_size * self.icon_size + self.apps_size * self.icon_size
     local x = v.x + (v.w / 2) - (w / 2)
@@ -222,28 +254,31 @@ function Yabai:resetCanvases()
       if s ~= nil then y = s:frame().y end
     end
     local c = hs.canvas.new({x=x, y=y, w=w, h=self.icon_size})
-    self.canvases[k] = c
+    self.canvases[index][k] = c
   end
 end
 
 -- insert the element to all canvases
 -- element: the element to be added
+-- index: index of element in the canvases
+-- cindex: index of double buffering canvases
 -- return: none
-function Yabai:insertElement(element, index)
-  for _, c in pairs(self.canvases) do
+function Yabai:insertElement(element, index, cindex)
+  for _, c in pairs(self.canvases[cindex]) do
     c:insertElement(element, index + 1)
   end
 end
 
 -- show canvases and set click event
+-- index: index of double buffering canvases
 -- return: none
-function Yabai:showCanvases()
+function Yabai:showCanvases(index)
   self.log.d('show canvases')
-  for _, c in pairs(self.canvases) do
+  for _, c in pairs(self.canvases[index]) do
     c:mouseCallback(function(canvas, event, id, x, y)
 	-- find display
 	local dispaly = nil
-	for k, v in pairs(self.canvases) do
+	for k, v in pairs(self.canvases[index]) do
 	  self.log.d('canvas:', k, v, canvas)
 	  if v:topLeft().x == canvas:topLeft().x then display = k end
 	end
@@ -261,12 +296,26 @@ function Yabai:showCanvases()
     c:canvasMouseEvents(false, true, false, false)
     c:show()
   end
+  hindex = (index == 1) and 2 or 1
+  for _, c in pairs(self.canvases[hindex]) do
+    c:hide()
+  end
 end
 
 -- update indicator status
 -- return: none
 function Yabai:updateIndicator()
-  for _, c in pairs(self.canvases) do
+  for _, c in pairs(self.canvases[1]) do
+    local count = c:elementCount() -- the last element is the indicator
+    if self.waitPrefix then
+      c:elementAttribute(count, 'strokeColor', {red=0, green=0, blue=0, alpha=0.5})
+      c:elementAttribute(count, 'fillColor', {red=0, green=0, blue=0, alpha=0.5})
+    else
+      c:elementAttribute(count, 'strokeColor', {red=1, green=0, blue=0, alpha=0.5})
+      c:elementAttribute(count, 'fillColor', {red=1, green=0, blue=0, alpha=0.5})
+    end
+  end
+  for _, c in pairs(self.canvases[2]) do
     local count = c:elementCount() -- the last element is the indicator
     if self.waitPrefix then
       c:elementAttribute(count, 'strokeColor', {red=0, green=0, blue=0, alpha=0.5})
@@ -281,8 +330,10 @@ end
 -- display spaces/windows information on all displays
 -- return: none
 function Yabai:displaySpaces()
+  -- toggle double buffering
+  self.cindex = (self.cindex == 1) and 2 or 1
   -- reset canvases
-  self:resetCanvases()
+  self:resetCanvases(self.cindex)
   -- add spaces
   self.ids = {}
   local index = 0
@@ -302,7 +353,7 @@ function Yabai:displaySpaces()
 	text = labelText,
 	padding = 3.0,
 	frame = {x=self.icon_size*index, y=0, w=self.icon_size, h=self.icon_size}
-    }, index)
+    }, index, self.cindex)
     table.insert(self.ids, tonumber(string.sub(k, 7)) * -1)
     index = index + 1
     -- add windows
@@ -319,10 +370,10 @@ function Yabai:displaySpaces()
 	      image = appImage,
 	      frame = {x=self.icon_size*index, y=0, w=self.icon_size, h=self.icon_size},
 	      imageAlpha = alpha
-	  }, index)
+	  }, index, self.cindex)
 	  table.insert(self.ids, v.id)
+	  index = index + 1
 	end
-	index = index + 1
       end
     end
   end
@@ -333,9 +384,9 @@ function Yabai:displaySpaces()
       fillColor = {red=0, green=0, blue=0, alpha=0.5},
       center = {x=self.icon_size*index-2, y=2},
       radius = 1,
-  }, index)
+  }, index, self.cindex)
   -- show
-  self:showCanvases()
+  self:showCanvases(self.cindex)
 end
 
 -- sync windows information from yabai
@@ -373,7 +424,7 @@ function Yabai:syncSpaces()
   local spaces = hs.json.decode(output)
   for k, v in pairs(spaces) do
     if string.sub(v['label'], 1, 6) == 'label-' then
-      self.labels[v['label']] = {index=v['index'], visible=v['is-visible']}
+      self.labels[v['label']] = {index=v['index'], visible=v['is-visible'], display=v['display']}
       self.spaces[v['index']] = v['label']
       self.labels_size = self.labels_size + 1
     end
@@ -418,8 +469,9 @@ function Yabai:replaceApps()
       end
     end
   end
-  self:syncApps()
-  self:displaySpaces()
+  if not self.update:running() then
+    self.update:start()
+  end
 end
 
 -- init instance
@@ -440,20 +492,21 @@ function Yabai:init(mods, key)
 		   self:updateIndicator()
   end)
 
-  -- sync displays, spaces, windows
-  self:syncDisplays()
-  self:syncSpaces()
-  self:syncApps()
-  -- display spaces
-  self:displaySpaces()
+  self.update = hs.timer.delayed.new(0.1, function()
+				       -- sync displays, spaces, windows
+				       self:syncDisplays()
+				       self:syncSpaces()
+				       self:syncApps()
+				       -- display spaces
+				       self:displaySpaces()
+  end)
 
   -- set refresh timer
   if self.refresh_timer > 0 then
     self.timer = hs.timer.new(refresh_timer, function()
-				self:syncDisplay()
-				self:syncSpaces()
-				self:syncApps()
-				self:displaySpaces()
+				if not self.update:running() then
+				  self.update:start()
+				end
     end)
     self.timer:start()
   end
@@ -461,27 +514,27 @@ function Yabai:init(mods, key)
   -- set display watcher
   self.screenWatcher = hs.screen.watcher.new(function()
       self.log.d('screen watcher')
-      self:syncDisplays()
-      self:syncSpaces()
-      self:syncApps()
-      self:displaySpaces()
+      if not self.update:running() then
+	self.update:start()
+      end
   end)
   self.screenWatcher:start()
 
   -- set space watcher
   self.spaceWatcher = hs.spaces.watcher.new(function()
       self.log.d('space watcher')
-      self:syncSpaces()
-      self:syncApps()
-      self:displaySpaces()
+      if not self.update:running() then
+	self.update:start()
+      end
   end)
   self.spaceWatcher:start()
 
   -- set window watcher
   self.appWatcher = hs.application.watcher.new(function()
       self.log.d('app watcher')
-      self:syncApps()
-      self:displaySpaces()
+      if not self.update:running() then
+	self.update:start()
+      end
   end)
   self.appWatcher:start()
 end
@@ -495,15 +548,18 @@ function Yabai:new(mods, key)
       -- internal data
       displays = {}, -- display index table - displays[display index] = {x=x, y=y, w=w, h=h}
 
-      labels = {}, -- space label table - labels[label] = {index=index, visible=true/false}
+      labels = {}, -- space label table - labels[label] = {index=index, visible=true/false, display=display}
       spaces = {}, -- space index table - spaces[index] = label
       labels_size = 0, -- size of labels
 
       apps = {}, -- app id table - apps[space label][app] = {name=name, id=id}
       apps_size = 0, -- size of apps
 
-      canvases = {}, -- canvas table - canvases[display index] = canvas
+      cindex = 1, -- canvas double buffering index 1 or 2
+      canvases = {{}, {}}, -- canvas table - canvases[1/2][display index] = canvas
       ids = {}, -- window id table
+
+      update = nil, -- delayed to sync and update canvases
 
       timer = nil, -- refresh timer
 
