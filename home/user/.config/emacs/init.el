@@ -582,6 +582,14 @@
    ("<backtab>"   . hs-hide-all)
    ("<C-backtab>" . hs-show-all)))
 
+;; highlight
+(use-package highlight-thing
+  :defer t
+  :config
+  (setq highlight-thing-what-thing 'symbol)
+  :hook
+  (prog-mode . highlight-thing-mode))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; lsp
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
