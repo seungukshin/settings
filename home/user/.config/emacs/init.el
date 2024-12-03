@@ -281,6 +281,36 @@
 
   (global-unset-key (kbd "C-x c"))
 
+  (defun s/project-root ()
+    "return version managed root directory"
+    (cl-loop for dir in '(".git/" ".hg/" ".svn/" ".git")
+	     when (locate-dominating-file default-directory dir)
+	     return it))
+
+  (defun s/helm-fd-project-root ()
+    "find files on the project root"
+    (interactive)
+    (require 'helm-fd)
+    (let ((rootdir (s/project-root)))
+      (unless rootdir
+	(error "Could not find the project root. Create a git, hg or svn repository there first"))
+      (helm-fd-1 rootdir)))
+
+  (defun s/helm-fd-directory ()
+    "find files on the selected directory"
+    (interactive)
+    (require 'helm-fd)
+    (let ((directory
+	   (file-name-as-directory
+	    (read-directory-name "DefaultDirectory: "))))
+      (helm-fd-1 directory)))
+
+  (defun s/helm-fd-current-directory ()
+    "find files on the current directory"
+    (interactive)
+    (require 'helm-fd)
+    (helm-fd-1 default-directory))
+
   :bind
   (("C-c h"   . helm-command-prefix)
    ("C-h"     . helm-command-prefix)
@@ -288,7 +318,10 @@
    ("M-y"     . helm-show-kill-ring)
    ("C-x b"   . helm-mini)
    ("C-x C-f" . helm-find-files)
-   ("C-, ,"   . helm-resume)
+   ("C-c r"   . helm-resume)
+   ("C-c fa"  . s/helm-fd-project-root)
+   ("C-c fd"  . s/helm-fd-directory)
+   ("C-c fc"  . s/helm-fd-current-directory)
    :map helm-map
    ("<tab>"   . helm-execute-persistent-action)
    ("C-i"     . helm-execute-persistent-action)
@@ -888,8 +921,7 @@ but do not execute them."
    'dirvish-open-with-programs
    '(("docx" "xlsx" "pptx") . ("open" "%f")))
   :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
-  (("C-c f" . dirvish-fd)
-   :map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
+  (:map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
    ("<left>"  . dired-up-directory)
    ("<right>" . dired-find-file)
    ("u"       . dired-up-directory)
@@ -1009,11 +1041,11 @@ but do not execute them."
     (delete-file (expand-file-name "init.elc" user-dir))
     (byte-compile-file (expand-file-name "init.el" user-dir))
     (load-file (expand-file-name "init.elc" user-dir))))
-(global-set-key (kbd "C-c r") 's/reload-init-file)
+;(global-set-key (kbd "C-c r") 's/reload-init-file)
 ;(global-set-key (kbd "C-c r") 'restart-emacs)
 
 ;; beginning of line
-(defun s/beginning-of-line()
+(defun s/beginning-of-line ()
   "beginning of line like vscode"
   (interactive)
   (setq prev-point (point))
