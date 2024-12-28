@@ -913,8 +913,17 @@ but do not execute them."
   (define-key vdiff-mode-map (kbd "C-c") vdiff-mode-prefix-map))
 
 (use-package nerd-icons
+  :defer t)
+
+(use-package ibuffer-vc
   :defer t
-  )
+  :init
+  (add-hook 'ibuffer-hook
+	    (lambda ()
+	      (ibuffer-vc-set-filter-groups-by-vc-root)
+	      (unless (eq ibuffer-sorting-mode 'alphabetic)
+		(ibuffer-do-srot-by-alphabetic))))
+  :bind ("C-x C-b" . 'ibuffer))
 
 (use-package dirvish
   :defer t
