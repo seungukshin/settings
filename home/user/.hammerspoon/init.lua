@@ -1,6 +1,7 @@
 local AppRemap = require('app-remap')
 
 local Yabai = require('yabai/yabai')
+local AeroSpace = require('aerospace/aerospace')
 
 local log = hs.logger.new("init", "debug")
 
@@ -104,6 +105,40 @@ for i = 1, 10 do
   yabai:bind({'alt'}, key, function() yabai:focusDisplay(i, nil); yabai:clear() end)
 end
 
+-- aerospace
+local aerospace = AeroSpace:new({'alt'}, 't');
+aerospace:addPlaceForApp('Slack', 1)
+aerospace:addPlaceForApp('Firefox', 2)
+aerospace:addPlaceForApp('Vivaldi', 3)
+aerospace:addPlaceForApp('Alacritty', 4)
+aerospace:addPlaceForApp('Logseq', 5)
+aerospace:addPlaceForApp('Microsoft Teams', 7)
+aerospace:addPlaceForApp('Microsoft Outlook', 8)
+aerospace:addPlaceForApp('Emacs', 9)
+aerospace:replaceApps()
+
+aerospace:bind({}, 'escape', function() aerospace:clear() end)
+aerospace:bind({}, 'r', function() aerospace:run({'reload-config'}, nil); aerospace:clear() end)
+aerospace:bind({}, 's', function() aerospace:replaceApps(); aerospace:clear() end)
+aerospace:bind({}, 't', function() aerospace:run({'focus-back-and-forth'}, nil); aerospace:clear() end)
+
+aerospace:bind({}, 'h', function() aerospace:run({'focus', 'left'}, nil); aerospace:clear() end)
+aerospace:bind({}, 'j', function() aerospace:run({'focus', 'down'}, nil); aerospace:clear() end)
+aerospace:bind({}, 'k', function() aerospace:run({'focus', 'up'}, nil); aerospace:clear() end)
+aerospace:bind({}, 'l', function() aerospace:run({'focus', 'right'}, nil); aerospace:clear() end)
+
+aerospace:bind({'alt'}, 'h', function() aerospace:run({'focus-monitor', 'left'}, nil); aerospace:clear() end)
+aerospace:bind({'alt'}, 'j', function() aerospace:run({'focus-monitor', 'down'}, nil); aerospace:clear() end)
+aerospace:bind({'alt'}, 'k', function() aerospace:run({'focus-monitor', 'up'}, nil); aerospace:clear() end)
+aerospace:bind({'alt'}, 'l', function() aerospace:run({'focus-monitor', 'right'}, nil); aerospace:clear() end)
+
+for i = 1, 10 do
+  local key = tostring(i)
+  if i > 9 then key = '0' end
+  aerospace:bind({}, key, function() aerospace:run({'summon-workspace', key}, nil); aerospace:clear() end)
+  aerospace:bind({'shift'}, key, function() aerospace:run({'move-node-to-workspace', key}, nil); aerospace:clear() end)
+  aerospace:bind({'alt'}, key, function() aerospace:run({'focus-monitor', key}, nil); aerospace:clear() end)
+end
 
 -- switcher
 local switcher = hs.window.switcher.new(hs.window.filter.new():setDefaultFilter{},
