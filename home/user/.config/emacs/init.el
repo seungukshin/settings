@@ -907,6 +907,11 @@ but do not execute them."
 (setq ediff-window-setup-function 'ediff-setup-windows-plain
       ediff-split-window-function 'split-window-horizontally)
 
+(use-package vdiff
+  :defer t
+  :config
+  (define-key vdiff-mode-map (kbd "C-c") vdiff-mode-prefix-map))
+
 (use-package nerd-icons
   :defer t
   )
