@@ -9,47 +9,130 @@ local AeroSpace = {
   size_icon = 24,
   pad_app = 0,
   pad_space = 4,
-  notch_display = 1, -- index in yabai, 0 to ignore
-  refresh_timer = 0, -- in seconds, 0 to disable the timer
-  places = {}, -- place table - places[app name] = space label
-  renames = { -- rename table
-    ['MSTeams'] = 'Microsoft Teams',
-  },
+  notch_display = 1, -- index in aerospace, 0 to ignore
+  places = {}, -- place table - places[app bundle id] = workspace id
+  monitors = {}, -- monitor table - monitors[monitor id] = workspace id
 
   -- internal data
-  log = hs.logger.new('AeroSpace', 'debug'),
+  log = hs.logger.new('AeroSpace', 'info'),
 }
 
--- add place table item
--- name: app name
--- label: space label
--- return: none
-function AeroSpace:addPlaceForApp(name, space)
-  if name ~= nil then
-    self.places[name] = space
+function AeroSpace:dump()
+  self.log.i('focused workspace:', self.focused_workspace)
+  self.log.i('windows:')
+  for k, v in pairs(self.workspaces_windows) do
+    self.log.i(' ', k, ':')
+    for k, v in pairs(v) do
+      self.log.i('   ', k, ':', v)
+    end
   end
+  self.log.i('monitors:')
+  for k, v in pairs(self.workspaces_monitor) do
+    self.log.i(' ', k, ':', v)
+  end
+end
+
+function AeroSpace:workspaceChanged(focused, previous)
+  self.log.d('workspaceChanged', focused, previous)
+  if self:updateFocus(focused, previous) then
+    --self:updateWorkspaces({focused, previous})
+    self:sync()
+    self:display()
+  end
+end
+
+-- add place table item
+-- bid: app bundle id
+-- sid: workspace id
+-- return: none
+function AeroSpace:addPlaceForApp(bid, sid)
+  if bid == nil then return end
+  self.places[bid] = sid
+end
+
+-- add monitor table item
+-- mid: monitor bundle id
+-- sid: workspace id
+-- return: none
+function AeroSpace:addWorkspaceForMonitor(mid, sid)
+  if mid == nil then return end
+  self.monitors[mid] = sid
 end
 
 -- replace apps
 -- return: none
 function AeroSpace:replaceApps()
-  for k, v in pairs(self.workspaces) do
+  self.log.i('replaceApps')
+
+  for k, v in pairs(self.workspaces_windows) do
     local sid = k
     for k, v in pairs(v) do
       local wid = k
-      local name = v
-      self.log.d(sid, wid, name)
-      if self.places[name] ~= nil and self.places[name] ~= sid then
-	self.log.d(sid, wid, name, '->', self.places[name])
-	--self:execute(self.aerospace .. ' focus --window-id ' .. tostring(wid))
-	--self:execute(self.aerospace .. ' move-node-to-workspace ' .. tostring(self.places[name]))
-	self:run({'move-node-to-workspace', '--window-id', tostring(wid), tostring(self.places[name])}, nil)
+      local bid = v
+      self.log.i(sid, wid, bid)
+      if self.places[bid] ~= nil and self.places[bid] ~= sid then
+	self.log.i(sid, wid, bid, '->', self.places[bid])
+	self:run({'move-node-to-workspace', '--window-id', tostring(wid), tostring(self.places[bid])}, nil)
       end
     end
   end
-  if not self.update:running() then
-    self.update:start()
+
+  for k, v in pairs(self.monitors) do
+    self.log.d(v, '->', k)
+    local task
+    task = self:run({'focus-monitor', tostring(k)}, nil)
+    task:waitUntilExit()
+    task = self:run({'summon-workspace', tostring(v)}, nil)
+    task:waitUntilExit()
   end
+
+  self:sync()
+  self:display()
+end
+
+-- sid: workspace id
+-- return: none
+function AeroSpace:moveFocusedWindowToWorkspace(sid)
+  local csid = self.focused_workspace
+  self:run({'move-node-to-workspace', sid}, function()
+      --self:updateWorkspaces({tonumber(sid), tonumber(csid)})
+      self:sync()
+      self:display()
+  end)
+end
+
+-- summon next workspace
+-- return: none
+function AeroSpace:nextWorkspace()
+  local fsid = self.focused_workspace
+  local tsid = {}
+  for sid, _ in pairs(self.workspaces_windows) do table.insert(tsid, sid) end
+  table.sort(tsid)
+  for _, sid in pairs(tsid) do
+    if sid > fsid then
+      self:run({'summon-workspace', tostring(sid)}, nil)
+      return
+    end
+  end
+  self:run({'summon-workspace', tostring(tsid[1])}, nil)
+  return
+end
+
+-- summon previous workspace
+-- return: none
+function AeroSpace:prevWorkspace()
+  local fsid = self.focused_workspace
+  local tsid = {}
+  for sid, _ in pairs(self.workspaces_windows) do table.insert(tsid, sid) end
+  table.sort(tsid, function(a, b) return a > b end)
+  for _, sid in pairs(tsid) do
+    if sid < fsid then
+      self:run({'summon-workspace', tostring(sid)}, nil)
+      return
+    end
+  end
+  self:run({'summon-workspace', tostring(tsid[1])}, nil)
+  return
 end
 
 -- clear prefix key status
@@ -62,45 +145,69 @@ end
 -- run aerospace command
 -- args: arguments table for yabai
 -- cb: callback function
--- return: none
+-- return: task object
 function AeroSpace:run(args, cb)
-  --self.log.d('run:', table.unpack(args))
-  hs.task.new(self.aerospace, function(exitCode, stdOut, stdErr)
-		--self.log.d('run:exitCode:', exitCode)
-		--self.log.d('run:stdErr:', stdErr)
-		--self.log.d('run:stdOut:', stdOut)
+  local st = hs.timer.absoluteTime()
+  self.log.d('run')
+
+  local task = hs.task.new(self.aerospace, function(exitCode, stdOut, stdErr)
+		self.log.d('run:exitCode:', exitCode)
+		self.log.d('run:stdOut:', stdOut)
+		self.log.d('run:stdErr:', stdErr)
 		if cb ~= nil then
-		  cb()
+		  cb(exitCode, stdOut, stdErr)
 		end
+		local ed = hs.timer.absoluteTime()
+		self.log.d('run-real:', (ed - st) / 1000000, 'ms: ', table.unpack(args))
   end, args):start()
+
+  local ed = hs.timer.absoluteTime()
+  self.log.d('run:', (ed - st) / 1000000, 'ms: ', table.unpack(args))
+  return task
 end
 
 -- run a command and return stdout
 -- cmd: command string
 -- return: output string
 function AeroSpace:execute(cmd)
-  --self.log.d('execute:', cmd)
+  local st = hs.timer.absoluteTime()
+  self.log.d('execute')
+
   local handle = io.popen(cmd, 'r')
   local output = handle:read('*a')
   handle:close()
-  --self.log.d('execute:output:', output)
+  self.log.d('execute:output:', output)
+
+  local ed = hs.timer.absoluteTime()
+  self.log.d('execute:', (ed - st) / 1000000, 'ms: ', cmd)
   return output
 end
 
 -- run aerospace query command and extract key value
 -- cmd: command string for query
--- key: key string to extract result
--- return: value of the key
-function AeroSpace:query(cmd, key)
-  local output = self:execute(self.aerospace .. ' ' .. cmd .. ' --json', 'r')
-  if output == '' then
-    return nil
-  end
-  local out = hs.json.decode(output)
-  if key ~= nil then
-    return out[key]
-  end
-  return out
+-- cb: callback function
+-- return: task object
+function AeroSpace:query(args, cb)
+  local st = hs.timer.absoluteTime()
+  self.log.d('query')
+
+  table.insert(args, '--json')
+  local task = hs.task.new(self.aerospace, function(exitCode, stdOut, stdErr)
+		self.log.d('run:exitCode:', exitCode)
+		self.log.d('run:stdOut:', stdOut)
+		self.log.d('run:stdErr:', stdErr)
+		if exitCode ~= 0 then return end
+		if stdOut == '' then return end
+		local output = hs.json.decode(stdOut)
+		cb(output)
+
+		local ed = hs.timer.absoluteTime()
+		self.log.d('query-real:', (ed - st) / 1000000, 'ms: ', table.unpack(args))
+  end, args):start()
+
+  local ed = hs.timer.absoluteTime()
+  self.log.d('query:', (ed - st) / 1000000, 'ms: ', table.unpack(args))
+  return task
 end
 
 -- bind prefix + key to cb
@@ -115,24 +222,16 @@ end
 -- update indicator status
 -- return: none
 function AeroSpace:updateIndicator()
-  for _, c in pairs(self.canvases[1]) do
-    local count = c:elementCount() -- the last element is the indicator
-    if self.waitPrefix then
-      c:elementAttribute(count, 'strokeColor', {red=0, green=0, blue=0, alpha=0.5})
-      c:elementAttribute(count, 'fillColor', {red=0, green=0, blue=0, alpha=0.5})
-    else
-      c:elementAttribute(count, 'strokeColor', {red=1, green=0, blue=0, alpha=0.5})
-      c:elementAttribute(count, 'fillColor', {red=1, green=0, blue=0, alpha=0.5})
-    end
-  end
-  for _, c in pairs(self.canvases[2]) do
-    local count = c:elementCount() -- the last element is the indicator
-    if self.waitPrefix then
-      c:elementAttribute(count, 'strokeColor', {red=0, green=0, blue=0, alpha=0.5})
-      c:elementAttribute(count, 'fillColor', {red=0, green=0, blue=0, alpha=0.5})
-    else
-      c:elementAttribute(count, 'strokeColor', {red=1, green=0, blue=0, alpha=0.5})
-      c:elementAttribute(count, 'fillColor', {red=1, green=0, blue=0, alpha=0.5})
+  for _, cs in pairs(self.canvases) do
+    for _, c in pairs(cs) do
+      local count = c:elementCount() -- the last element is the indicator
+      if self.waitPrefix then
+	c:elementAttribute(count, 'strokeColor', {red=0, green=0, blue=0, alpha=0.5})
+	c:elementAttribute(count, 'fillColor', {red=0, green=0, blue=0, alpha=0.5})
+      else
+	c:elementAttribute(count, 'strokeColor', {red=1, green=0, blue=0, alpha=0.5})
+	c:elementAttribute(count, 'fillColor', {red=1, green=0, blue=0, alpha=0.5})
+      end
     end
   end
 end
@@ -141,17 +240,10 @@ end
 -- index: index of double buffering canvases
 -- return: none
 function AeroSpace:showCanvases(index)
-  --self.log.d('show canvases:', index)
+  self.log.d('show canvases:', index)
   for _, c in pairs(self.canvases[index]) do
     c:mouseCallback(function(canvas, event, id, x, y)
-	-- focus display
-	for k, v in pairs(self.canvases[index]) do
-	  if v:topLeft().x == canvas:topLeft().x then
-	    self:execute(self.aerospace .. ' focus-monitor ' .. tostring(k))
-	  end
-	end
-	-- focus workspace or app
-	--self.log.d('click:', id)
+	--self.log.d('click workspace:', id)
 	if id > 0 then
 	  self:run({'focus', '--window-id', tostring(id)}, nil)
 	else
@@ -165,6 +257,7 @@ function AeroSpace:showCanvases(index)
   hindex = (index == 1) and 2 or 1
   for _, c in pairs(self.canvases[hindex]) do
     c:hide()
+    c:canvasMouseEvents(false, false, false, false)
   end
 end
 
@@ -173,7 +266,6 @@ end
 -- cindex: index of double buffering canvases
 -- return: none
 function AeroSpace:appendElements(elements, cindex)
-  --self.log.d('append:', cindex)
   for _, c in pairs(self.canvases[cindex]) do
     c:appendElements(elements)
   end
@@ -183,86 +275,143 @@ end
 -- index: index of double buffering canvases
 -- return: none
 function AeroSpace:resetCanvases(index)
-  for _, c in pairs(self.canvases[index]) do c:delete() end
-  self.canvases[index] = {}
+  for _, c in pairs(self.canvases[index]) do
+    for i = c:elementCount(), 1, -1 do
+      c:removeElement(i)
+    end
+  end
   for k, v in pairs(hs.screen.allScreens()) do
     local p = v:fullFrame()
     local w = self.width
     local x = p.x + (p.w / 2) - (w / 2)
     local y = p.y
     if k == self.notch_display then y = v:frame().y end
-    local c = hs.canvas.new({x=x, y=y, w=w, h=self.size_icon})
-    --self.log.d('reset:', index, x, y, w, h)
-    self.canvases[index][k] = c
+    if self.canvases[index][k] == nil then
+      local c = hs.canvas.new({x=x, y=y, w=w, h=self.size_icon})
+      self.canvases[index][k] = c
+    else
+      self.canvases[index][k]:frame({x=x, y=y, w=w, h=self.size_icon})
+    end
   end
 end
 
--- display spaces/windows information on all displays
+-- add workspaces information on all displays
+-- sid: workspace id
+-- offset: start offset in the canvas
+-- return: start offset for next workspace
+function AeroSpace:addWorkspace(sid, offset)
+  local v = self.workspaces_windows[sid]
+  local alpha = 0.5
+  local r, g, b = 0, 0, 0
+  if self.workspaces_monitor[sid] == nil then self.workspaces_monitor[sid] = 0 end
+  local monitor = self.workspaces_monitor[sid] % 3
+  if self.workspaces_monitor[sid] > 0 then
+    alpha = 1.0
+    if monitor == 1 then r = 1 end
+    if monitor == 2 then g = 1 end
+    if monitor == 0 then b = 1 end
+  end
+  -- workspace id
+  local labelText = hs.styledtext.new(tostring(sid), {
+					font={size=20},
+					color={red=0, green=0, blue=0, alpha=alpha},
+					paragraphStyle={alignment='center'}
+  })
+
+  local space_offset = offset
+  local space_count = 0
+  local elements = {}
+  offset = offset + self.pad_space + self.size_icon
+  for wid, bid in pairs(v) do
+    -- apps
+    self.log.d('item:', wid, bid)
+    --local app = hs.appfinder.appFromName(name)
+    --local appBundle = app:bundleID()
+    --local appImage = hs.image.imageFromAppBundle(appBundle)
+    local appImage = hs.image.imageFromAppBundle(bid)
+    offset = offset + self.pad_app
+    table.insert(elements, {
+		   id = wid,
+		   type = 'image',
+		   image = appImage,
+		   frame = {x=offset, y=0, w=self.size_icon, h=self.size_icon},
+		   imageAlpha = alpha,
+		   trackMouseUp = true,
+		   trackMouseDown = false,
+		   trackMouseMove = false
+    })
+    offset = offset + self.size_icon
+    space_count = space_count + 1
+  end
+
+  -- workspace background
+  space_offset = space_offset + self.pad_space
+  self:appendElements({
+      type = 'rectangle',
+      action = 'strokeAndFill',
+      strokeColor = {red=r, green=g, blue=b, alpha=alpha-0.3},
+      fillColor = {red=r, green=g, blue=b, alpha=alpha-0.5},
+      roundedRectRadii = {xRadius=5, yRadius=5},
+      frame = {x=space_offset, y=0, w=self.size_icon+(self.pad_app+self.size_icon)*space_count, h=self.size_icon},
+      trackMouseUp = true,
+      trackMouseDown = false,
+      trackMouseMove = false
+		      }, self.cindex)
+  self:appendElements({
+      id = sid * -1,
+      type = 'text',
+      text = labelText,
+      padding = 3.0,
+      frame = {x=space_offset, y=0, w=self.size_icon, h=self.size_icon},
+      trackMouseUp = true,
+      trackMouseDown = false,
+      trackMouseMove = false
+		      }, self.cindex)
+  if space_count > 0 then self:appendElements(elements, self.cindex) end
+
+  return offset
+end
+
+-- display workspaces/windows information on all displays
 -- return: none
 function AeroSpace:display()
+  local st = hs.timer.absoluteTime()
+  self.log.i('display')
+
   -- toggle double buffering
   self.cindex = (self.cindex == 1) and 2 or 1
+
+  -- calculate total width
+  self.width = -1 * self.pad_space
+  for k, v in pairs(self.workspaces_windows) do
+    local count = 0
+    for k, v in pairs(v) do
+      self.width = self.width + self.pad_app + self.size_icon
+      count = count + 1
+    end
+    if count > 0 then
+      self.width = self.width + self.pad_space + self.size_icon
+    end
+  end
+
   -- reset canvases
   self:resetCanvases(self.cindex)
-  -- add items
+
+  -- add workspaces/windows
   local offset = -1 * self.pad_space
-  for k, v in pairs(self.workspaces) do
-    -- workspace
-    local alpha = 0.5
-    if self.active_workspaces[k] then alpha = 1.0 end
-    local labelText = hs.styledtext.new(tostring(k), {
-					  font={size=20},
-					  color={red=0, green=0, blue=0, alpha=alpha},
-					  paragraphStyle={alignment='center'}
-    })
-
-    local space_offset = offset
-    local space_count = 0
-    local elements = {}
-    offset = offset + self.pad_space + self.size_icon
-    for k, v in pairs(v) do
-      -- apps
-      --self.log.d('item:', k, v)
-      local name = v
-      if self.renames[v] ~= nil then name = self.renames[v] end
-      local app = hs.appfinder.appFromName(name)
-      if app ~= nil then
-	local appBundle = app:bundleID()
-	local appImage = hs.image.imageFromAppBundle(appBundle)
-	offset = offset + self.pad_app
-	table.insert(elements, {
-	    id = k,
-	    type = 'image',
-	    image = appImage,
-	    frame = {x=offset, y=0, w=self.size_icon, h=self.size_icon},
-	    imageAlpha = alpha,
-	    trackMouseUp = true
-	})
-	offset = offset + self.size_icon
-	space_count = space_count + 1
-      end
+  local tsid = {}
+  for sid, _ in pairs(self.workspaces_windows) do table.insert(tsid, sid) end
+  table.sort(tsid)
+  for _, sid in pairs(tsid) do
+    local count = 0
+    for k, v in pairs(self.workspaces_windows[sid]) do
+      count = count + 1
     end
-
-    space_offset = space_offset + self.pad_space
-    self:appendElements({
-	type = 'rectangle',
-	action = 'strokeAndFill',
-	strokeColor = {red=0, green=0, blue=0, alpha=alpha-0.3},
-	fillColor = {red=0, green=0, blue=0, alpha=alpha-0.5},
-	roundedRectRadii = {xRadius=5, yRadius=5},
-	frame = {x=space_offset, y=0, w=self.size_icon+(self.pad_app+self.size_icon)*space_count, h=self.size_icon},
-	trackMouseUp = true
-    }, self.cindex)
-    self:appendElements({
-	id = k * -1,
-	type = 'text',
-	text = labelText,
-	padding = 3.0,
-	frame = {x=space_offset, y=0, w=self.size_icon, h=self.size_icon},
-	trackMouseUp = true
-    }, self.cindex)
-    if space_count > 0 then self:appendElements(elements, self.cindex) end
+    if count > 0 then
+      offset = self:addWorkspace(sid, offset)
+    end
   end
+
   -- add key indicator
   self:appendElements({
       id = 0,
@@ -270,38 +419,109 @@ function AeroSpace:display()
       strokeColor = {red=0, green=0, blue=0, alpha=0.5},
       fillColor = {red=0, green=0, blue=0, alpha=0.5},
       center = {x=offset-2, y=2},
-      radius = 1,
-      trackMouseUp = true
+      radius = 2,
+      trackMouseUp = true,
+      trackMouseDown = false,
+      trackMouseMove = false
   }, self.cindex)
+
   -- show
   self:showCanvases(self.cindex)
+
+  local ed = hs.timer.absoluteTime()
+  self.log.i('display:', (ed - st) / 1000000, 'ms')
+end
+
+-- update windows information from aerospace
+-- curr: focused workspace id
+-- prev: previous workspace id
+-- return: whether the display update is required or not (true / false)
+function AeroSpace:updateFocus(curr, prev)
+  --self.log.d('update:', curr, prev)
+  --self.log.d('monitor:', self.workspaces_monitor[curr], self.workspaces_monitor[prev])
+  self.focused_workspace = curr
+  if self.workspaces_monitor[curr] > 0 then
+    return false
+  end
+  self.workspaces_monitor[curr] = self.workspaces_monitor[prev]
+  self.workspaces_monitor[prev] = 0
+  return true
+end
+
+-- update windows information in workspaces
+-- tsid: workspace id table to update
+-- return: none
+function AeroSpace:updateWorkspaces(tsid)
+  local st = hs.timer.absoluteTime()
+  self.log.i('updateWorkspaces')
+
+  local args = {'list-windows', '--workspace'}
+  for _, sid in pairs(tsid) do
+    table.insert(args, tostring(sid))
+    self.workspaces_windows[sid] = {}
+  end
+  table.insert(args, '--format')
+  table.insert(args, '%{window-id}%{app-bundle-id}%{workspace}')
+  local task = self:query(args, function(output)
+      for _, v in pairs(output) do
+	local sid = tonumber(v['workspace'])
+	local wid = tonumber(v['window-id'])
+	self.log.d('updateWorkspace:', sid, v['window-id'], v['app-bundle-id'])
+	self.workspaces_windows[sid][wid] = v['app-bundle-id']
+	self.log.d('updateWorkspace:', sid, v['app-bundle-id'])
+      end
+  end)
+  task:waitUntilExit()
+
+  local ed = hs.timer.absoluteTime()
+  self.log.i('updateWorkspaces:', (ed - st) / 1000000, 'ms')
 end
 
 -- sync windows information from aerospace
 -- return: none
 function AeroSpace:sync()
-  self.workspaces = {}
-  self.active_workspaces = {}
-  self.width = -1 * self.pad_space
-  local output = self:query('list-workspaces --all', nil)
-  for _, v in pairs(output) do
-    local sid = tonumber(v['workspace'])
-    self.workspaces[sid] = {}
-    self.width = self.width + self.pad_space + self.size_icon
-    local output = self:query('list-windows --workspace ' .. sid, nil)
-    for _, v in pairs(output) do
-      local wid = tonumber(v['window-id'])
-      local name = v['app-name']
-      self.workspaces[sid][wid] = name
-      self.width = self.width + self.pad_app + self.size_icon
-    end
-    self.active_workspaces[sid] = false
-  end
-  local output = self:query('list-workspaces --monitor all --visible', nil)
-  for _, v in pairs(output) do
-    local sid = tonumber(v['workspace'])
-    self.active_workspaces[sid] = true
-  end
+  local st = hs.timer.absoluteTime()
+  self.log.i('sync')
+
+  self.workspaces_windows = {}
+  self.workspaces_monitor = {}
+
+  -- windows
+  local windows_task = self:query({'list-windows', '--all', '--format', '%{window-id}%{app-bundle-id}%{workspace}'}, function(output)
+      for _, v in pairs(output) do
+	local sid = tonumber(v['workspace'])
+	if self.workspaces_windows[sid] == nil then
+	  self.workspaces_windows[sid] = {}
+	end
+	local wid = tonumber(v['window-id'])
+	self.workspaces_windows[sid][wid] = v['app-bundle-id']
+      end
+  end)
+
+  -- monitors
+  local monitors_task = self:query({'list-workspaces', '--monitor', 'all', '--visible', '--format', '%{workspace}%{monitor-id}'}, function(output)
+      for k, _ in pairs(self.workspaces_monitor) do
+	self.workspaces_monitor[k] = 0
+      end
+      for k, v in pairs(output) do
+	local sid = tonumber(v['workspace'])
+	local mid = v['monitor-id']
+	self.workspaces_monitor[sid] = mid
+      end
+  end)
+
+  -- focused workspace
+  local workspace_task = self:query({'list-workspaces', '--focused', '--format', '%{workspace}'}, function(output)
+      self.focused_workspace = tonumber(output[1]['workspace'])
+  end)
+
+  -- wait
+  windows_task:waitUntilExit()
+  monitors_task:waitUntilExit()
+  workspace_task:waitUntilExit()
+
+  local ed = hs.timer.absoluteTime()
+  self.log.i('sync:', (ed - st) / 1000000, 'ms')
 end
 
 -- init instance
@@ -309,7 +529,8 @@ end
 -- key: normal key for prefix
 -- return: none
 function AeroSpace:init(mods, key)
-  --self.log.d('init')
+  self.log.d('init')
+
   -- set prefix key
   self.waitPrefix = true
   self.modal = hs.hotkey.modal.new()
@@ -323,53 +544,38 @@ function AeroSpace:init(mods, key)
 		   self:updateIndicator()
   end)
 
-  self.update = hs.timer.delayed.new(0.0, function()
-				       self:sync()
-				       self:display()
-  end)
-
-  -- set refresh timer
-  if self.refresh_timer > 0 then
-    self.timer = hs.timer.new(refresh_timer, function()
-				if not self.update:running() then
-				  self.update:start()
-				end
-    end)
-    self.timer:start()
-  end
+  self:sync()
+  self:display()
 
   -- set display watcher
   self.screenWatcher = hs.screen.watcher.new(function()
-      self.log.d('screen watcher')
-      if not self.update:running() then
-	self.update:start()
-      end
+      self.log.i('screen watcher')
+      self:sync()
+      self:display()
   end)
   self.screenWatcher:start()
 
-  -- set space watcher
+  --[[ set space watcher
   self.spaceWatcher = hs.spaces.watcher.new(function()
       self.log.d('space watcher')
-      if not self.update:running() then
-	self.update:start()
-      end
+      self:triggerUpdate()
   end)
-  self.spaceWatcher:start()
+  self.spaceWatcher:start() ]]--
 
   -- set window watcher
   self.appWatcher = hs.application.watcher.new(function(appName, eventType, appObject)
-      if (eventType ~= hs.application.watcher.activated) then
+      if eventType ~= hs.application.watcher.launched and
+	eventType ~= hs.application.watcher.terminated and
+	eventType ~= hs.application.watcher.activated and
+	eventType ~= hs.application.watcher.deactivated then
 	return
       end
-      if self.update:running() then
-	return
-      end
-      self.log.d('app watcher', appName, eventType, appObject)
-      self.update:start()
+      self.log.i('app watcher', appName, eventType, appObject:bundleID())
+      --self:updateWorkspaces({self.focused_workspace})
+      self:sync()
+      self:display()
   end)
   self.appWatcher:start()
-
-  self.update:start()
 end
 
 -- create new instance
@@ -382,16 +588,13 @@ function AeroSpace:new(mods, key)
       cindex = 1, -- canvas double buffering index 1 or 2
       canvases = {{}, {}}, -- canvas table - canvases[1/2][display index] = canvas
 
-      workspaces = {}, -- workspaces[workspace id][window id] = app name
-      active_workspaces = {}, -- active_workspaces[workspace id] = true or false
+      workspaces_windows = {}, -- workspaces_windows[workspace id][window id] = app bundle id
+      workspaces_monitor = {}, -- workspaces_monitor[workspace id] = monitor id
+      focused_workspace = 0, -- focused workspace id
       width = 0, -- width of the bar -> | pad space | space | pad app | app | ...
 
-      update = nil, -- delayed to sync and update canvases
-
-      timer = nil, -- refresh timer
-
       screenWatcher = nil,
-      spaceWatcher = nil,
+      --spaceWatcher = nil,
       appWatcher = nil,
   }, self)
   self.__index = self

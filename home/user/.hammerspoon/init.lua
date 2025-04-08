@@ -1,29 +1,37 @@
-local AppRemap = require('app-remap')
+--------------------------------------------------------------------------------
+-- enable ipc
+--------------------------------------------------------------------------------
+require("hs.ipc")
+hs.ipc.cliInstall()
 
-local Yabai = require('yabai/yabai')
-local AeroSpace = require('aerospace/aerospace')
-
+--------------------------------------------------------------------------------
+-- log
+--------------------------------------------------------------------------------
 local log = hs.logger.new("init", "debug")
 
-
+--------------------------------------------------------------------------------
+-- device specific functions
+--------------------------------------------------------------------------------
 local keyboardApple = require('keyboard-apple-internal')
 --local keyboardAdvantage2 = require('keyboard-kinesis-advantage2')
 local keyboardGlobal = require('keyboard-global')
-local mouseMagic = require('mouse-magic-mouse')
+--local mouseMagic = require('mouse-magic-mouse')
 local mouseGlobal = require('mouse-global')
 
+--------------------------------------------------------------------------------
+-- application specific functions
+--------------------------------------------------------------------------------
+local AppRemap = require('app-remap')
 
-
+--local Yabai = require('yabai/yabai')
+local AeroSpace = require('aerospace/aerospace')
 
 -- change shift+space to option+space
 local remapIME = AppRemap:new('remapIME')
 remapIME:setAppNames({'Emacs', 'Alacritty', 'kitty', 'DCV Viewer', 'Tabby'})
 remapIME:setContained(false)
-
 remapIME:bind({'shift'}, 'space', {'option'}, 'space')
-
 remapIME:start()
-
 
 -- change ctrl to cmd for specific keys
 local remapCtrlCmd = AppRemap:new('remapCtrlCmd')
@@ -63,8 +71,7 @@ remapCtrlCmd:bind({'ctrl'}, 's', {'cmd'}, 'f')
 remapCtrlCmd:start()
 --remapCtrlCmd:apply(nil, appNames[hs.application.watcher.activated])
 
-
--- yabai
+--[[ yabai
 local yabai = Yabai:new({'alt'}, 't');
 yabai:addPlaceForApp('Slack', 2)
 yabai:addPlaceForApp('Alacritty', 3)
@@ -104,23 +111,32 @@ for i = 1, 10 do
   yabai:bind({'shift'}, key, function() yabai:sendActiveWindowToSpace(i, nil); yabai:clear() end)
   yabai:bind({'alt'}, key, function() yabai:focusDisplay(i, nil); yabai:clear() end)
 end
+--]]
 
 -- aerospace
-local aerospace = AeroSpace:new({'alt'}, 't');
-aerospace:addPlaceForApp('Slack', 1)
-aerospace:addPlaceForApp('Firefox', 2)
-aerospace:addPlaceForApp('Vivaldi', 3)
-aerospace:addPlaceForApp('Alacritty', 4)
-aerospace:addPlaceForApp('Logseq', 5)
-aerospace:addPlaceForApp('Microsoft Teams', 7)
-aerospace:addPlaceForApp('Microsoft Outlook', 8)
-aerospace:addPlaceForApp('Emacs', 9)
-aerospace:replaceApps()
+-- aerospace should be global to use ipc
+aerospace = AeroSpace:new({'alt'}, 't');
+aerospace:addPlaceForApp('com.tinyspeck.slackmacgap', 1)
+aerospace:addPlaceForApp('org.mozilla.firefox', 2)
+aerospace:addPlaceForApp('com.vivaldi.Vivaldi', 3)
+aerospace:addPlaceForApp('org.alacritty', 4)
+aerospace:addPlaceForApp('com.electron.logseq', 5)
+aerospace:addPlaceForApp('com.microsoft.teams2', 7)
+aerospace:addPlaceForApp('com.microsoft.Outlook', 8)
+aerospace:addPlaceForApp('org.gnu.Emacs', 9)
+aerospace:addWorkspaceForMonitor(1, 2)
+aerospace:addWorkspaceForMonitor(2, 4)
+aerospace:addWorkspaceForMonitor(3, 1)
+--aerospace:replaceApps()
 
 aerospace:bind({}, 'escape', function() aerospace:clear() end)
 aerospace:bind({}, 'r', function() aerospace:run({'reload-config'}, nil); aerospace:clear() end)
+aerospace:bind({}, 'd', function() aerospace:dump(); aerospace:clear() end)
 aerospace:bind({}, 's', function() aerospace:replaceApps(); aerospace:clear() end)
 aerospace:bind({}, 't', function() aerospace:run({'focus-back-and-forth'}, nil); aerospace:clear() end)
+
+aerospace:bind({}, 'n', function() aerospace:nextWorkspace(); aerospace:clear() end)
+aerospace:bind({}, 'p', function() aerospace:prevWorkspace(); aerospace:clear() end)
 
 aerospace:bind({}, 'h', function() aerospace:run({'focus', 'left'}, nil); aerospace:clear() end)
 aerospace:bind({}, 'j', function() aerospace:run({'focus', 'down'}, nil); aerospace:clear() end)
@@ -136,11 +152,13 @@ for i = 1, 10 do
   local key = tostring(i)
   if i > 9 then key = '0' end
   aerospace:bind({}, key, function() aerospace:run({'summon-workspace', key}, nil); aerospace:clear() end)
-  aerospace:bind({'shift'}, key, function() aerospace:run({'move-node-to-workspace', key}, nil); aerospace:clear() end)
+  aerospace:bind({'shift'}, key, function() aerospace:moveFocusedWindowToWorkspace(key); aerospace:clear() end)
   aerospace:bind({'alt'}, key, function() aerospace:run({'focus-monitor', key}, nil); aerospace:clear() end)
 end
 
+--------------------------------------------------------------------------------
 -- switcher
+--------------------------------------------------------------------------------
 local switcher = hs.window.switcher.new(hs.window.filter.new():setDefaultFilter{},
 					{
 					  textSize=10,
@@ -153,8 +171,9 @@ local switcher = hs.window.switcher.new(hs.window.filter.new():setDefaultFilter{
 hs.hotkey.bind('alt', 'tab', function() switcher:next() end)
 hs.hotkey.bind('alt-shift', 'tab', function() switcher:previous() end)
 
-
+--------------------------------------------------------------------------------
 -- expose
+--------------------------------------------------------------------------------
 local expose = hs.expose.new(nil,
 		       {
 			  backgroundColor={0.3,0.3,0.3,0.7},
@@ -164,6 +183,9 @@ local expose = hs.expose.new(nil,
 )
 hs.hotkey.bind('cmd', 'e', function() expose:toggleShow() end)
 
+--------------------------------------------------------------------------------
+-- watchers
+--------------------------------------------------------------------------------
 
 -- application watcher
 function applicationWatch(appName, eventType, appObject)
@@ -181,21 +203,19 @@ function applicationWatch(appName, eventType, appObject)
     end
   end
 end
---local appWatcher = hs.application.watcher.new(applicationWatch)
---appWatcher:start()
-
+local appWatcher = hs.application.watcher.new(applicationWatch)
+appWatcher:start()
 
 -- sleep watcher
 function sleepWatch(eventType)
   if (eventType == hs.caffeinate.watcher.systemDidWake) then
     keyboardApple:register()
     --keyboardAdvantage2:register()
-    mouseMagic:register()
+    --mouseMagic:register()
   end
 end
 local sleepWatcher = hs.caffeinate.watcher.new(sleepWatch)
 sleepWatcher:start()
-
 
 -- usb watcher
 function usbCall()
@@ -209,5 +229,5 @@ function usbWatch(data)
     usbTimer:start()
   end
 end
---local usbWatcher = hs.usb.watcher.new(usbWatch)
---usbWatcher:start()
+local usbWatcher = hs.usb.watcher.new(usbWatch)
+usbWatcher:start()

@@ -36,7 +36,7 @@
 	  ("https" . "proxy.com:8080"))))
 
 ;; debug
-(setq debug-on-error t)
+(setq debug-on-error nil)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; package management
@@ -106,8 +106,8 @@
 			    (internal-border-width . 10)
 			    ;(fullscreen . maximized)
 			    ;(background-color . "#000000")
-                            (ns-appearance . dark)
-                            (ns-transparent-titlebar . t)))
+			    (ns-appearance . dark)
+			    (ns-transparent-titlebar . t)))
 
 ;; menu
 (when (eq system-type 'darwin)
@@ -181,6 +181,12 @@
       display-time-interval 1)
 (display-time-mode)
 
+;; goggles
+(use-package goggles
+  :hook ((prog-mode text-mode) . goggles-mode)
+  :config
+  (setq goggles-pulse t))
+
 ;; scroll
 (pixel-scroll-precision-mode)			; smooth scrolling
 (setopt mouse-wheel-tilt-scroll t
@@ -212,6 +218,10 @@
 ;; column indicator
 (setopt display-fill-column-indicator-column 80)
 (global-display-fill-column-indicator-mode)
+
+;; buffer split
+(set-display-table-slot standard-display-table
+			'vertical-border (make-glyph-code ?┃))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; language
@@ -318,7 +328,7 @@
    ("M-y"     . helm-show-kill-ring)
    ("C-x b"   . helm-mini)
    ("C-x C-f" . helm-find-files)
-   ("C-c r"   . helm-resume)
+   ("C-c o"   . helm-resume)
    ("C-c fa"  . s/helm-fd-project-root)
    ("C-c fd"  . s/helm-fd-directory)
    ("C-c fc"  . s/helm-fd-current-directory)
@@ -334,11 +344,11 @@
   (setq helm-ag-base-command "rg --vimgrep --no-heading --smart-case")
   (setq helm-ag-insert-at-point 'symbol)
   :bind
-  (("C-c aa" . helm-do-ag-project-root)
-   ("C-c ad" . helm-do-ag)
-   ("C-c af" . helm-do-ag-this-file)
-   ("C-c ab" . helm-do-ag-buffers)
-   ("C-c ao" . helm-ag-pop-stack)))
+  (("C-c ra" . helm-do-ag-project-root)
+   ("C-c rd" . helm-do-ag)
+   ("C-c rf" . helm-do-ag-this-file)
+   ("C-c rb" . helm-do-ag-buffers)
+   ("C-c ro" . helm-ag-pop-stack)))
 
 ;; fzf
 (use-package fzf
@@ -513,14 +523,16 @@
   :config
   ;; use treesitter enabled mode than normal mode
   (setq major-mode-remap-alist
-        '((yaml-mode . yaml-ts-mode)
-          (bash-mode . bash-ts-mode)
-          (js2-mode . js-ts-mode)
-          ;(typescript-mode . typescript-ts-mode)
-          (typescript-mode . tsx-mode)
-          (json-mode . json-ts-mode)
-          (css-mode . css-ts-mode)
-          (python-mode . python-ts-mode)))
+        '((python-mode . python-ts-mode)
+	  (bash-mode . bash-ts-mode)
+	  (js2-mode . js-ts-mode)
+	  ;(typescript-mode . typescript-ts-mode)
+	  (typescript-mode . tsx-mode)
+	  (css-mode . css-ts-mode)
+	  (json-mode . json-ts-mode)
+	  (dockerfile-mode . dockerfile-ts-mode)
+	  (yaml-mode . yaml-ts-mode)
+	  (toml-mode . toml-ts-mode)))
   :hook
   ;; Auto parenthesis matching
   (prog-mode . electric-pair-mode))
@@ -555,6 +567,11 @@
 	     :repo "gregsexton/origami.el")
   :defer t)
 
+;(use-package typescript-ts-mode
+;  :straight (:type built-in)
+;  :defer t
+;  :mode "\\.tsx?\\'")
+
 (use-package tsx-mode
   :straight (tsx-mode
 	     :type git
@@ -568,10 +585,22 @@
   :config
   (setq lua-indent-level 2))
 
-(use-package markdown-mode
+(use-package dockerfile-ts-mode
+  :straight (:type built-in)
+  :defer t
+  :mode (("\\Dockerfile\\'" . dockerfile-ts-mode)
+	 ("\\.dockerignore\\'" . dockerfile-ts-mode)))
+
+(use-package yaml-ts-mode
+  :straight (:type built-in)
+  :mode "\\.ya?ml\\'")
+
+(use-package toml-ts-mode
+  :straight (:type built-in)
+  :mode "\\.toml\\'"
   :defer t)
 
-(use-package dockerfile-mode
+(use-package markdown-mode
   :defer t)
 
 ;; indent guide
@@ -607,18 +636,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; lsp
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; elgot
+;; eglot
 ;; https://www.masteringemacs.org/article/seamlessly-merge-multiple-documentation-sources-eldoc
 (use-package eglot
   :hook
-  (((python-mode ruby-mode elixir-mode) . eglot))
-
+  (((python-mode ruby-mode elixir-mode lua-mode) . eglot-ensure))
   :custom
   (eglot-send-changes-idle-time 0.1)
   (eglot-extend-to-xref t)			; activate Eglot in referenced non-project files
 
   :config
   (fset #'jsonrpc--log-event #'ignore)		; don't log every event
+
+  ;; lua-language-server
+  (add-to-list 'exec-path (concat user-dir "language-server/lua-language-server/bin/"))
+  (add-to-list 'eglot-server-programs '(lua-mode . ("lua-language-server")))
 
   ;(add-to-list 'eglot-server-programs
                ;'(haskell-mode . ("haskell-language-server-wrapper" "--lsp")))
@@ -647,7 +679,7 @@
 
 ;; git-gutter
 (use-package git-gutter
-  :defer t
+  :ensure t
   :config (global-git-gutter-mode t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -698,7 +730,7 @@
     (setq org-todo-keywords '((sequence "TODO(t)" "WAIT(w)" "|" "DONE(d)" "DROP(p)"))
 	  org-hide-leading-stars t
 	  org-startup-indented t
-	  org-startup-folded t)
+	  org-startup-folded 'showall)
 
     ;; heading font size
     (custom-set-faces '(org-level-1 ((t (:height 1.0))))
@@ -707,6 +739,15 @@
 		      '(org-level-4 ((t (:height 1.0))))
 		      '(org-level-5 ((t (:height 1.0))))
 		      '(org-level-6 ((t (:height 1.0)))))
+
+    ;; add visibility
+    (add-hook 'org-cycle-hook
+	      (lambda (symbol-state)
+		(interactive)
+		(let ((state (symbol-name symbol-state)))
+		  (if (string= state "subtree")
+		      (org-entry-put nil "visibility" "all")
+		    (org-entry-put nil "visibility" state)))))
 
     ;; citation
     (require 'oc-csl)
@@ -759,6 +800,7 @@
 
     :bind
     (:map global-map
+	  ("C-c a" . org-agenda)
 	  ("C-c l s" . org-store-link)		; Mnemonic: link → store
 	  ("C-c l i" . org-insert-link-global))); Mnemonic: link → insert
 
