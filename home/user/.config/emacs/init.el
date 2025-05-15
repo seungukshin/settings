@@ -995,9 +995,33 @@ but do not execute them."
   (setq delete-by-moving-to-trash t)
   (setq dired-listing-switches
         "-l --almost-all --human-readable --group-directories-first --no-group")
-  (add-to-list
-   'dirvish-open-with-programs
-   '(("docx" "xlsx" "pptx") . ("open" "%f")))
+
+  ;; use an external app
+  (setq dirvish-external-exts nil)
+  (setq dired-guess-shell-alist-user nil)
+  (let ((dirvish-default-app (cond ((eq system-type 'darwin) "open")
+				   ((eq system-type 'windows-nt) "start")
+				   (t "xdg-open")))
+	(dirvish-external-apps '(("docx" "open -a 'Microsoft Word'")
+				 ("doc" ,dirvish-default-app)
+				 ("xlsx" "open -a 'Microsoft Excel'")
+				 ("xls" ,dirvish-default-app)
+				 ("pptx" "open -a 'Microsoft PowerPoint'")
+				 ("ppt" ,dirvish-default-app))))
+    (dolist (element dirvish-external-apps)
+      (add-to-list 'dirvish-external-exts (car element) t)
+      (add-to-list 'dired-guess-shell-alist-user (list (concat "\\." (car element) "\\'") (cdr element)))))
+  (defun dirvish-open-binaries-externally (file fn)
+    "When FN is not `dired', open binary FILE externally."
+    (when-let* (((not (eq fn 'dired)))
+		((file-exists-p file))
+		((not (file-directory-p file)))
+		((member (downcase (or (file-name-extension file) ""))
+			 dirvish-external-exts)))
+      ;; return t to terminate `dirvish--find-entry'.
+      (prog1 t (dired-do-open))))
+  (add-hook 'dirvish-find-entry-hook #'dirvish-open-binaries-externally)
+
   :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
   (:map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
    ("<left>"  . dired-up-directory)
