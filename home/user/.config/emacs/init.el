@@ -273,8 +273,7 @@
   :defer t
   :init
   (vertico-mode)
-  (setq vertico-cycle t
-	vertico-count 20))
+  (setq vertico-cycle t))
 
 ;; help message for minibuffer commands
 (use-package marginalia
@@ -290,67 +289,7 @@
 
 ;; completion contents
 (use-package consult
-  ;; Replace bindings. Lazily loaded by `use-package'.
-  :bind (;; C-c bindings in `mode-specific-map'
-         ("C-c M-x" . consult-mode-command)
-         ("C-c h" . consult-history)
-         ("C-c k" . consult-kmacro)
-         ("C-c m" . consult-man)
-         ;("C-c i" . consult-info)
-         ([remap Info-search] . consult-info)
-         ;; C-x bindings in `ctl-x-map'
-         ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
-         ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
-         ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
-         ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
-         ("C-x t b" . consult-buffer-other-tab)    ;; orig. switch-to-buffer-other-tab
-         ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
-         ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
-         ;; Custom M-# bindings for fast register access
-         ("M-#" . consult-register-load)
-         ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
-         ("C-M-#" . consult-register)
-         ;; Other custom bindings
-         ("M-y" . consult-yank-pop)                ;; orig. yank-pop
-         ;; M-g bindings in `goto-map'
-         ("M-g e" . consult-compile-error)
-         ("M-g f" . consult-flymake)               ;; Alternative: consult-flycheck
-         ("M-g g" . consult-goto-line)             ;; orig. goto-line
-         ("M-g M-g" . consult-goto-line)           ;; orig. goto-line
-         ("M-g o" . consult-outline)               ;; Alternative: consult-org-heading
-         ("M-g m" . consult-mark)
-         ("M-g k" . consult-global-mark)
-         ("M-g i" . consult-imenu)
-         ("M-g I" . consult-imenu-multi)
-         ;; M-s bindings in `search-map'
-         ("M-s d" . consult-find)                  ;; Alternative: consult-fd
-         ("M-s c" . consult-locate)
-         ("M-s g" . consult-grep)
-         ("M-s G" . consult-git-grep)
-         ("M-s r" . consult-ripgrep)
-         ("M-s l" . consult-line)
-         ("M-s L" . consult-line-multi)
-         ("M-s k" . consult-keep-lines)
-         ("M-s u" . consult-focus-lines)
-         ;; Isearch integration
-         ("M-s e" . consult-isearch-history)
-         :map isearch-mode-map
-         ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
-         ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
-         ("M-s l" . consult-line)                  ;; needed by consult-line to detect isearch
-         ("M-s L" . consult-line-multi)            ;; needed by consult-line to detect isearch
-         ;; Minibuffer history
-         :map minibuffer-local-map
-         ("M-s" . consult-history)                 ;; orig. next-matching-history-element
-         ("M-r" . consult-history))                ;; orig. previous-matching-history-element
-
-  ;; Enable automatic preview at point in the *Completions* buffer. This is
-  ;; relevant when you use the default completion UI.
-  :hook (completion-list-mode . consult-preview-at-point-mode)
-
-  ;; The :init configuration is always executed (Not lazy)
   :init
-
   ;; Tweak the register preview for `consult-register-load',
   ;; `consult-register-store' and the built-in commands.  This improves the
   ;; register formatting, adds thin separator lines, register sorting and hides
@@ -362,10 +301,7 @@
   (setq xref-show-xrefs-function #'consult-xref
         xref-show-definitions-function #'consult-xref)
 
-  ;; Configure other variables and modes in the :config section,
-  ;; after lazily loading the package.
   :config
-
   ;; Optionally configure preview. The default value
   ;; is 'any, such that any key triggers the preview.
   ;; (setq consult-preview-key 'any)
@@ -389,18 +325,67 @@
   ;; Optionally make narrowing help available in the minibuffer.
   ;; You may want to use `embark-prefix-help-command' or which-key instead.
   ;; (keymap-set consult-narrow-map (concat consult-narrow-key " ?") #'consult-narrow-help)
-)
+
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+
+  :bind
+  (;; C-c bindings in `mode-specific-map'
+   ("C-c M-x" . consult-mode-command)
+   ("C-c h"   . consult-history)
+   ("C-c k"   . consult-kmacro)
+   ("C-c m"   . consult-man)
+   ("C-c i"   . consult-info)
+   ([remap Info-search] . consult-info)
+   ;; C-x bindings in `ctl-x-map'
+   ("C-x M-:" . consult-complex-command)	; repeat-complex-command
+   ("C-x b"   . consult-buffer)			; switch-to-buffer
+   ("C-x 4 b" . consult-buffer-other-window)	; switch-to-buffer-other-window
+   ("C-x 5 b" . consult-buffer-other-frame)	; switch-to-buffer-other-frame
+   ("C-x t b" . consult-buffer-other-tab)	; switch-to-buffer-other-tab
+   ("C-x r b" . consult-bookmark)		; bookmark-jump
+   ("C-x p b" . consult-project-buffer)		; project-switch-to-buffer
+   ;; Custom M-# bindings for fast register access
+   ("M-#"     . consult-register-load)
+   ("M-'"     . consult-register-store)		; abbrev-prefix-mark (unrelated)
+   ("C-M-#"   . consult-register)
+   ;; Other custom bindings
+   ("M-y"     . consult-yank-pop)		; yank-pop
+   ;; M-g bindings in `goto-map'
+   ("M-g e"   . consult-compile-error)
+   ("M-g f"   . consult-flymake)		; or consult-flycheck
+   ("M-g g"   . consult-goto-line)		; goto-line
+   ("M-g M-g" . consult-goto-line)		; goto-line
+   ("M-g o"   . consult-outline)		; or consult-org-heading
+   ("M-g m"   . consult-mark)
+   ("M-g k"   . consult-global-mark)
+   ("M-g i"   . consult-imenu)
+   ("M-g I"   . consult-imenu-multi)
+   ;; M-s bindings in `search-map'
+   ("C-c f f" . consult-find)
+   ("C-c f d" . consult-fd)
+   ("C-c f c" . consult-locate)
+   ("C-c g g" . consult-grep)
+   ("C-c g G" . consult-git-grep)
+   ("C-c g r" . consult-ripgrep)
+   ("C-c g l" . consult-line)
+   ("C-c g L" . consult-line-multi)
+   ("C-c g k" . consult-keep-lines)
+   ("C-c g u" . consult-focus-lines)
+   ;; Isearch integration
+   ("M-s e"   . consult-isearch-history)
+   :map isearch-mode-map
+   ("M-e"     . consult-isearch-history)	; isearch-edit-string
+   ("M-s e"   . consult-isearch-history)	; isearch-edit-string
+   ("M-s l"   . consult-line)			; needed by consult-line to detect isearch
+   ("M-s L"   . consult-line-multi)		; needed by consult-line to detect isearch
+   ;; Minibuffer history
+   :map minibuffer-local-map
+   ("M-s"     . consult-history)		; next-matching-history-element
+   ("M-r"     . consult-history)))		; previous-matching-history-element
 
 (use-package embark
   :ensure t
-
-  :bind
-  (("C-." . embark-act)         ;; pick some comfortable binding
-   ("C-;" . embark-dwim)        ;; good alternative: M-.
-   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
-
   :init
-
   ;; Optionally replace the key help with a completing-read interface
   (setq prefix-help-command #'embark-prefix-help-command)
 
@@ -414,18 +399,21 @@
   ;; (setq eldoc-documentation-strategy #'eldoc-documentation-compose-eagerly)
 
   :config
-
   ;; Hide the mode line of the Embark live/completions buffers
   (add-to-list 'display-buffer-alist
                '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
                  nil
-                 (window-parameters (mode-line-format . none)))))
+                 (window-parameters (mode-line-format . none))))
+
+  :bind
+  (("C-."   . embark-act)			; pick some comfortable binding
+   ("C-;"   . embark-dwim)			; good alternative: M-.
+   ("C-h B" . embark-bindings)))		; alternative for `describe-bindings'
 
 ;; Consult users will also want the embark-consult package.
 (use-package embark-consult
   :ensure t ; only need to install it, embark loads it after consult if found
-  :hook
-  (embark-collect-mode . consult-preview-at-point-mode))
+  :hook (embark-collect-mode . consult-preview-at-point-mode))
 
 ;; popup completion-at-point
 (use-package corfu
@@ -434,9 +422,9 @@
   (global-corfu-mode)
   :bind
   (:map corfu-map
-        ("SPC" . corfu-insert-separator)
-        ("C-n" . corfu-next)
-        ("C-p" . corfu-previous)))
+   ("SPC" . corfu-insert-separator)
+   ("C-n" . corfu-next)
+   ("C-p" . corfu-previous)))
 
 ;; make corfu popup come up in terminal overlay
 (use-package corfu-terminal
@@ -535,6 +523,7 @@
 
 ;; helm-ag
 (use-package helm-ag
+  :disabled
   :defer t
   :config
   (setq helm-ag-base-command "rg --vimgrep --no-heading --smart-case")
@@ -562,6 +551,7 @@
 
 ;; helm-swoop
 (use-package helm-swoop
+  :disabled
   :defer t
   :config
   (setq helm-multi-swoop-edit-save t
@@ -589,6 +579,7 @@
 
 ;; helm-google
 (use-package helm-google
+  :disabled
   :defer t
   :bind ("C-c w" . helm-google))
 
@@ -598,6 +589,7 @@
 
 ;; helm-cscope
 (use-package helm-cscope
+  :disabled
   :defer t
   :init
   (add-hook 'c-mode-common-hook 'helm-cscope-mode)
@@ -618,6 +610,7 @@
 
 ;; global
 (use-package helm-gtags
+  :disabled
   :defer t
   :init
   (add-hook 'c-mode-common-hook 'helm-gtags-mode)
@@ -923,7 +916,7 @@
     (setq org-agenda-custom-commands
           '(("n" "Agenda and All Todos"
              ((agenda)
-              (todo)))
+              (todo "TODO" ((org-agenda-skip-function '(org-agenda-skip-entry-if 'scheduled 'deadline 'timestamp))))))
             ("w" "Work" agenda ""
              ((org-agenda-files '("work.org"))))))
 
@@ -934,9 +927,17 @@
 	  '(("family_search" . "https://www.familysearch.org/tree/person/details/%s")))
 
     (setq org-display-inline-images t
+	  org-display-remote-inline-images t
 	  org-redisplay-inline-images t
-	  org-startup-with-inline-images t)
+	  org-startup-with-inline-images t
+	  org-image-actual-width 800)
     (add-hook 'org-babel-after-execute-hook 'org-redisplay-inline-images)
+
+    (defun org-image-resize (frame)
+      (when (derived-mode-p 'org-mode)
+	(setq org-image-actual-width (/ (window-pixel-width) 2))
+	(org-redisplay-inline-images)))
+    (add-hook 'window-size-change-functions 'org-image-resize)
 
     (org-babel-do-load-languages
      'org-babel-load-languages
@@ -944,12 +945,13 @@
 
     :bind
     (:map global-map
-	  ("C-c a" . org-agenda)
-	  ("C-c l s" . org-store-link)		; Mnemonic: link → store
-	  ("C-c l i" . org-insert-link-global))); Mnemonic: link → insert
+     ("C-c a" . org-agenda)
+     ("C-c o s" . org-store-link)		; Mnemonic: link → store
+     ("C-c o i" . org-insert-link-global)))	; Mnemonic: link → insert
 
   (use-package org-roam
     :defer t
+    :after org
     :init
     (setq org-roam-directory "~/org/"
 	  org-roam-index-file "~/org/index.org")
@@ -964,17 +966,45 @@
                    (window-width . 0.4)
                    (window-height . fit-window-to-buffer))))
 
+  (use-package org-yt
+    :straight (org-yt
+	       :type git
+	       :host github
+	       :repo "TobiasZawada/org-yt")
+    :after org)
+
+  (use-package org-remoteimg
+    :straight (org-remoteimg
+	       :type git
+	       :host github
+	       :repo "gaoDean/org-remoteimg")
+    :after (org org-yt)
+    :config
+    (setq url-cache-directory temp-dir
+	  url-automatic-caching t
+	  org-display-remote-inline-images 'cache))
+
+  (use-package org-imgtog
+    :straight (org-imgtog
+	       :type git
+	       :host github
+	       :repo "gaoDean/org-imgtog")
+    :defer t
+    :after org
+    :hook org-mode)
+
   (use-package org-transclusion
     :defer t
+    :after org
     :bind
-    (("C-c i a" . org-transclusion-add)
+    (("C-c o a"  . org-transclusion-add)
      (:map org-transclusion-map
-	   ("C-c i A" . org-transclusion-add-all)
-	   ("C-c i r" . org-transclusion-remove)
-	   ("C-c i R" . org-transclusion-remove-all)
-	   ("C-c i T" . org-transclusion-activate)
-	   ("C-c i D" . org-transclusion-deactivate)
-	   ("C-c i d" . org-transclusion-detach)))))
+      ("C-c o A" . org-transclusion-add-all)
+      ("C-c o r" . org-transclusion-remove)
+      ("C-c o R" . org-transclusion-remove-all)
+      ("C-c o T" . org-transclusion-activate)
+      ("C-c o D" . org-transclusion-deactivate)
+      ("C-c o d" . org-transclusion-detach)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; terminal
