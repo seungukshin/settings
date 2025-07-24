@@ -129,6 +129,8 @@ aerospace:addWorkspaceForMonitor(2, 4)
 aerospace:addWorkspaceForMonitor(3, 1)
 --aerospace:replaceApps()
 
+aerospace.hide_windows = {'Orion Preview'}
+
 aerospace:bind({}, 'escape', function() aerospace:clear() end)
 aerospace:bind({}, 'r', function() aerospace:run({'reload-config'}, nil); aerospace:clear() end)
 aerospace:bind({}, 'd', function() aerospace:dump(); aerospace:clear() end)

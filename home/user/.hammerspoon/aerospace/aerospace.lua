@@ -12,6 +12,7 @@ local AeroSpace = {
   notch_display = 1, -- index in aerospace, 0 to ignore
   places = {}, -- place table - places[app bundle id] = workspace id
   monitors = {}, -- monitor table - monitors[monitor id] = workspace id
+  hide_windows = {},
 
   -- internal data
   log = hs.logger.new('AeroSpace', 'info'),
@@ -487,14 +488,21 @@ function AeroSpace:sync()
   self.workspaces_monitor = {}
 
   -- windows
-  local windows_task = self:query({'list-windows', '--all', '--format', '%{window-id}%{app-bundle-id}%{workspace}'}, function(output)
+  local windows_task = self:query({'list-windows', '--all', '--format', '%{window-id}%{app-bundle-id}%{workspace}%{window-title}'}, function(output)
       for _, v in pairs(output) do
+	for _, w in pairs(self.hide_windows) do
+	  self.log.i('windows:', v['window-id'], v['app-bundle-id'], v['window-title'])
+	  if v['window-title'] == 'Orion Preview' then
+	    goto continue
+	  end
+	end
 	local sid = tonumber(v['workspace'])
 	if self.workspaces_windows[sid] == nil then
 	  self.workspaces_windows[sid] = {}
 	end
 	local wid = tonumber(v['window-id'])
 	self.workspaces_windows[sid][wid] = v['app-bundle-id']
+	::continue::
       end
   end)
 
