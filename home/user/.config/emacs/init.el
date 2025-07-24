@@ -943,7 +943,11 @@
 
     (org-babel-do-load-languages
      'org-babel-load-languages
-     '((dot . t))) ; this line activates dot
+     '((dot . t)
+       (python . t)))
+    (when (eq system-type 'darwin)
+      (setq org-babel-python-command "/usr/bin/python3"
+	    python-remove-cwd-from-path nil))
 
     :bind
     (:map global-map
