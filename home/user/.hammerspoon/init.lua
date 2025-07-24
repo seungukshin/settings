@@ -118,7 +118,7 @@ end
 aerospace = AeroSpace:new({'alt'}, 't');
 aerospace:addPlaceForApp('com.tinyspeck.slackmacgap', 1)
 aerospace:addPlaceForApp('org.mozilla.firefox', 2)
-aerospace:addPlaceForApp('com.vivaldi.Vivaldi', 3)
+aerospace:addPlaceForApp('com.brave.Browser', 3)
 aerospace:addPlaceForApp('org.alacritty', 4)
 aerospace:addPlaceForApp('com.electron.logseq', 5)
 aerospace:addPlaceForApp('com.microsoft.teams2', 7)
@@ -154,7 +154,13 @@ for i = 1, 10 do
   local key = tostring(i)
   if i > 9 then key = '0' end
   aerospace:bind({}, key, function() aerospace:run({'summon-workspace', key}, nil); aerospace:clear() end)
-  aerospace:bind({'shift'}, key, function() aerospace:moveFocusedWindowToWorkspace(key); aerospace:clear() end)
+  aerospace:bind({'alt', 'shift'}, key, function() aerospace:moveFocusedWindowToWorkspace(key); aerospace:clear() end)
+  aerospace:bind({'shift'}, key, function()
+      aerospace:run({'move-node-to-workspace', key}, function()
+	  aerospace:run({'summon-workspace', key}, nil)
+      end)
+      aerospace:clear()
+  end)
   aerospace:bind({'alt'}, key, function() aerospace:run({'focus-monitor', key}, nil); aerospace:clear() end)
 end
 

@@ -38,7 +38,6 @@ function AeroSpace:workspaceChanged(focused, previous)
   if self:updateFocus(focused, previous) then
     --self:updateWorkspaces({focused, previous})
     self:sync()
-    self:display()
   end
 end
 
@@ -80,15 +79,12 @@ function AeroSpace:replaceApps()
 
   for k, v in pairs(self.monitors) do
     self.log.d(v, '->', k)
-    local task
-    task = self:run({'focus-monitor', tostring(k)}, nil)
-    task:waitUntilExit()
-    task = self:run({'summon-workspace', tostring(v)}, nil)
-    task:waitUntilExit()
+    self:run({'focus-monitor', tostring(k)}, function()
+	self:run({'summon-workspace', tostring(v)}, nil)
+    end)
   end
 
   self:sync()
-  self:display()
 end
 
 -- sid: workspace id
@@ -98,7 +94,6 @@ function AeroSpace:moveFocusedWindowToWorkspace(sid)
   self:run({'move-node-to-workspace', sid}, function()
       --self:updateWorkspaces({tonumber(sid), tonumber(csid)})
       self:sync()
-      self:display()
   end)
 end
 
@@ -245,10 +240,34 @@ function AeroSpace:showCanvases(index)
   for _, c in pairs(self.canvases[index]) do
     c:mouseCallback(function(canvas, event, id, x, y)
 	--self.log.d('click workspace:', id)
+	--for k, cc in pairs(self.canvases[index]) do
+	  --self.log.i(c, ' ', k, ' ', cc)
+	  --if c == cc then
+	    --self.log.i('equal!!!')
+	  --end
+	--end
 	if id > 0 then
 	  self:run({'focus', '--window-id', tostring(id)}, nil)
 	else
-	  self:run({'summon-workspace', tostring(id * -1)}, nil)
+	  id = id * -1
+	  if self.visible_workspaces[id] then
+	    local focused_workspace = self.focused_workspace
+	    local task = self:query({'list-monitors', '--focused', '--format', '%{monitor-id}'}, function(output)
+		local smid = output[1]['monitor-id']
+		local tmid = self.visible_workspaces[id]
+		self:run({'summon-workspace', tostring(10)}, function()
+		    self:run({'focus-monitor', tostring(tmid)}, function()
+			self:run({'summon-workspace', tostring(focused_workspace)}, function()
+			    self:run({'focus-monitor', tostring(smid)}, function()
+				self:run({'summon-workspace', tostring(id)}, nil)
+			    end)
+			end)
+		    end)
+		end)
+	    end)
+	  else
+	    self:run({'summon-workspace', tostring(id)}, nil)
+	  end
 	end
     end)
     c:clickActivating(false)
@@ -276,12 +295,18 @@ end
 -- index: index of double buffering canvases
 -- return: none
 function AeroSpace:resetCanvases(index)
+  self.log.i('resetCanvases:', index)
   for _, c in pairs(self.canvases[index]) do
-    for i = c:elementCount(), 1, -1 do
-      c:removeElement(i)
-    end
+    --for i = c:elementCount(), 1, -1 do
+      --c:removeElement(i)
+    --end
+    self.log.i('delete canvas')
+    --c:hide()
+    c:delete()
   end
+  self.canvases[index] = {}
   for k, v in pairs(hs.screen.allScreens()) do
+    self.log.i('allScreens:', k, v)
     local p = v:fullFrame()
     local w = self.width
     local x = p.x + (p.w / 2) - (w / 2)
@@ -294,6 +319,7 @@ function AeroSpace:resetCanvases(index)
       self.canvases[index][k]:frame({x=x, y=y, w=w, h=self.size_icon})
     end
   end
+  self.log.i('resetCanvases ----------')
 end
 
 -- add workspaces information on all displays
@@ -471,8 +497,8 @@ function AeroSpace:updateWorkspaces(tsid)
 	self.workspaces_windows[sid][wid] = v['app-bundle-id']
 	self.log.d('updateWorkspace:', sid, v['app-bundle-id'])
       end
+      self:display()
   end)
-  task:waitUntilExit()
 
   local ed = hs.timer.absoluteTime()
   self.log.i('updateWorkspaces:', (ed - st) / 1000000, 'ms')
@@ -486,6 +512,10 @@ function AeroSpace:sync()
 
   self.workspaces_windows = {}
   self.workspaces_monitor = {}
+
+  local windows_done = false
+  local monitors_done = false
+  local workspace_done = false
 
   -- windows
   local windows_task = self:query({'list-windows', '--all', '--format', '%{window-id}%{app-bundle-id}%{workspace}%{window-title}'}, function(output)
@@ -504,6 +534,10 @@ function AeroSpace:sync()
 	self.workspaces_windows[sid][wid] = v['app-bundle-id']
 	::continue::
       end
+      windows_done = true
+      if windows_done and monitors_done and workspace_done then
+	self:display()
+      end
   end)
 
   -- monitors
@@ -516,17 +550,27 @@ function AeroSpace:sync()
 	local mid = v['monitor-id']
 	self.workspaces_monitor[sid] = mid
       end
+      monitors_done = true
+      if windows_done and monitors_done and workspace_done then
+	self:display()
+      end
   end)
 
   -- focused workspace
-  local workspace_task = self:query({'list-workspaces', '--focused', '--format', '%{workspace}'}, function(output)
-      self.focused_workspace = tonumber(output[1]['workspace'])
+  --local workspace_task = self:query({'list-workspaces', '--focused', '--format', '%{workspace}'}, function(output)
+  local workspace_task = self:query({'list-workspaces', '--visible', '--monitor', 'all', '--format', '%{workspace}%{monitor-id}%{workspace-is-focused}'}, function(output)
+      self.visible_workspaces = {}
+      for k, v in pairs(output) do
+	if v['workspace-is-focused'] then
+	  self.focused_workspace = tonumber(v['workspace'])
+	end
+	self.visible_workspaces[tonumber(v['workspace'])] = tonumber(v['monitor-id'])
+      end
+      workspace_done = true
+      if windows_done and monitors_done and workspace_done then
+	self:display()
+      end
   end)
-
-  -- wait
-  windows_task:waitUntilExit()
-  monitors_task:waitUntilExit()
-  workspace_task:waitUntilExit()
 
   local ed = hs.timer.absoluteTime()
   self.log.i('sync:', (ed - st) / 1000000, 'ms')
@@ -553,13 +597,11 @@ function AeroSpace:init(mods, key)
   end)
 
   self:sync()
-  self:display()
 
   -- set display watcher
   self.screenWatcher = hs.screen.watcher.new(function()
       self.log.i('screen watcher')
       self:sync()
-      self:display()
   end)
   self.screenWatcher:start()
 
@@ -581,7 +623,6 @@ function AeroSpace:init(mods, key)
       self.log.i('app watcher', appName, eventType, appObject:bundleID())
       --self:updateWorkspaces({self.focused_workspace})
       self:sync()
-      self:display()
   end)
   self.appWatcher:start()
 end
@@ -598,6 +639,7 @@ function AeroSpace:new(mods, key)
 
       workspaces_windows = {}, -- workspaces_windows[workspace id][window id] = app bundle id
       workspaces_monitor = {}, -- workspaces_monitor[workspace id] = monitor id
+      visible_workspaces = {}, -- visible_workspaces[workspace id] = monitor id
       focused_workspace = 0, -- focused workspace id
       width = 0, -- width of the bar -> | pad space | space | pad app | app | ...
 
