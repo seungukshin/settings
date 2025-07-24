@@ -26,7 +26,9 @@
   (add-to-list 'exec-path (concat home-dir "AppData/Roaming/emacs/bin/")))
 (when (eq system-type 'darwin)
   (add-to-list 'exec-path (concat home-dir "bin/"))
-  (add-to-list 'exec-path "/opt/homebrew/bin/"))
+  (add-to-list 'exec-path "/opt/homebrew/bin/")
+  (setenv "PATH" (format "%s:%s" "/opt/homebrew/bin" (getenv "PATH")))
+  (setenv "LIBRARY_PATH" "/opt/homebrew/opt/gcc/lib/gcc/15:/opt/homebrew/opt/libgccjit/lib/gcc/15:/opt/homebrew/opt/gcc/lib/gcc/15/gcc/aarch64-apple-darwin24/15"))
 
 ;; proxy
 (when nil
