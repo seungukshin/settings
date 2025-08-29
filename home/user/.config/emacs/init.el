@@ -2,13 +2,10 @@
 ;;; check statup time
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; startup time
-(defun efs/display-startup-time ()
-  (message
-   "Emacs loaded in %s seconds with %d garbage collections."
-   (emacs-init-time)
-   gcs-done))
-
-(add-hook 'emacs-startup-hook #'efs/display-startup-time)
+(add-hook 'emacs-startup-hook
+	  (lambda ()
+	    (message "Emacs loaded in %s seconds with %d garbage collections."
+		     (emacs-init-time) gcs-done)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; basic configure
@@ -22,13 +19,29 @@
   (make-directory temp-dir t))
 
 ;; exec path
-(when (eq system-type 'windows-nt)
-  (add-to-list 'exec-path (concat home-dir "AppData/Roaming/emacs/bin/")))
-(when (eq system-type 'darwin)
-  (add-to-list 'exec-path (concat home-dir "bin/"))
-  (add-to-list 'exec-path "/opt/homebrew/bin/")
-  (setenv "PATH" (format "%s:%s" "/opt/homebrew/bin" (getenv "PATH")))
-  (setenv "LIBRARY_PATH" "/opt/homebrew/opt/gcc/lib/gcc/15:/opt/homebrew/opt/libgccjit/lib/gcc/15:/opt/homebrew/opt/gcc/lib/gcc/15/gcc/aarch64-apple-darwin24/15"))
+(cond ((eq system-type 'windows-nt)
+       (add-to-list 'exec-path (concat home-dir "bin/"))
+       (add-to-list 'exec-path (concat home-dir "AppData/Roaming/emacs/bin/"))
+       (setenv "PATH" (format "%s:%s"
+			      (concat home-dir "bin/")
+			      (concat home-dir "AppData/Roaming/emacs/bin/")
+			      (getenv "PATH"))))
+      ((eq system-type 'darwin)
+       (add-to-list 'exec-path (concat home-dir "bin/"))
+       (add-to-list 'exec-path "/opt/homebrew/bin/")
+       (setenv "PATH" (format "%s:%s:%s"
+			      (concat home-dir "bin/")
+			      "/opt/homebrew/bin"
+			      (getenv "PATH")))
+       (setenv "LIBRARY_PATH" (format "%s:%s:%s"
+				      "/opt/homebrew/opt/gcc/lib/gcc/current"
+				      "/opt/homebrew/opt/libgccjit/lib/gcc/current"
+				      "/opt/homebrew/opt/gcc/lib/gcc/current/gcc/aarch64-apple-darwin24/15")))
+      (t
+       (add-to-list 'exec-path (concat home-dir "bin/"))
+       (setenv "PATH" (format "%s:%s"
+			      (concat home-dir "bin/")
+			      (getenv "PATH")))))
 
 ;; proxy
 (when nil
@@ -417,6 +430,23 @@
   :ensure t ; only need to install it, embark loads it after consult if found
   :hook (embark-collect-mode . consult-preview-at-point-mode))
 
+(use-package consult-cscope
+  :straight (consult-cscope
+	     :host github
+	     :repo "seungukshin/consult-cscope")
+  :hook (c-mode-common . consult-cscope-mode)
+  :bind
+  (:map c-mode-base-map
+	("C-c c s" . consult-cscope-symbol)
+	("C-c c g" . consult-cscope-definition)
+	("C-c c d" . consult-cscope-calledby)
+	("C-c c c" . consult-cscope-calling)
+	("C-c c t" . consult-cscope-text)
+	("C-c c e" . consult-cscope-egrep)
+	("C-c c f" . consult-cscope-file)
+	("C-c c i" . consult-cscope-including)
+	("C-c c o" . consult-cscope-pop)))
+
 ;; popup completion-at-point
 (use-package corfu
   :defer t
@@ -514,10 +544,10 @@
    ("M-y"     . helm-show-kill-ring)
    ("C-x b"   . helm-mini)
    ("C-x C-f" . helm-find-files)
-   ("C-c o"   . helm-resume)
-   ("C-c fa"  . s/helm-fd-project-root)
-   ("C-c fd"  . s/helm-fd-directory)
-   ("C-c fc"  . s/helm-fd-current-directory)
+   ("C-c e"   . helm-resume)
+   ("C-c f a"  . s/helm-fd-project-root)
+   ("C-c f d"  . s/helm-fd-directory)
+   ("C-c f c"  . s/helm-fd-current-directory)
    :map helm-map
    ("<tab>"   . helm-execute-persistent-action)
    ("C-i"     . helm-execute-persistent-action)
@@ -531,11 +561,11 @@
   (setq helm-ag-base-command "rg --vimgrep --no-heading --smart-case")
   (setq helm-ag-insert-at-point 'symbol)
   :bind
-  (("C-c ra" . helm-do-ag-project-root)
-   ("C-c rd" . helm-do-ag)
-   ("C-c rf" . helm-do-ag-this-file)
-   ("C-c rb" . helm-do-ag-buffers)
-   ("C-c ro" . helm-ag-pop-stack)))
+  (("C-c r a" . helm-do-ag-project-root)
+   ("C-c r d" . helm-do-ag)
+   ("C-c r f" . helm-do-ag-this-file)
+   ("C-c r b" . helm-do-ag-buffers)
+   ("C-c r o" . helm-ag-pop-stack)))
 
 ;; fzf
 (use-package fzf
@@ -564,10 +594,10 @@
         helm-swoop-use-line-number-face t
         helm-swoop-use-fuzzy-match t)
   :bind
-  (("C-c ss" . helm-swoop)
-   ("C-c sr" . helm-swoop-back-to-last-point)
-   ("C-c sm" . helm-multi-swoop)
-   ("C-c sa" . helm-multi-swoop-all))
+  (("C-c s s" . helm-swoop)
+   ("C-c s r" . helm-swoop-back-to-last-point)
+   ("C-c s m" . helm-multi-swoop)
+   ("C-c s a" . helm-multi-swoop-all))
   (:map isearch-mode-map
    ("C-i" . helm-swoop-from-isearch))
   (:map helm-swoop-map
@@ -600,15 +630,15 @@
   (setq cscope-option-do-not-update-database t)
   :bind
   (:map c-mode-base-map
-   ("C-c cs" . helm-cscope-find-this-symbol)
-   ("C-c cg" . helm-cscope-find-global-definition)
-   ("C-c cd" . helm-cscope-find-called-this-function)
-   ("C-c cc" . helm-cscope-find-calling-this-function)
-   ("C-c ct" . helm-cscope-find-this-text-string)
-   ("C-c ce" . helm-cscope-find-egrep-pattern)
-   ("C-c cf" . helm-cscope-find-this-file)
-   ("C-c ci" . helm-cscope-find-files-including-file)
-   ("C-c co" . helm-cscope-pop-mark)))
+   ("C-c c s" . helm-cscope-find-this-symbol)
+   ("C-c c g" . helm-cscope-find-global-definition)
+   ("C-c c d" . helm-cscope-find-called-this-function)
+   ("C-c c c" . helm-cscope-find-calling-this-function)
+   ("C-c c t" . helm-cscope-find-this-text-string)
+   ("C-c c e" . helm-cscope-find-egrep-pattern)
+   ("C-c c f" . helm-cscope-find-this-file)
+   ("C-c c i" . helm-cscope-find-files-including-file)
+   ("C-c c o" . helm-cscope-pop-mark)))
 
 ;; global
 (use-package helm-gtags
@@ -626,12 +656,12 @@
    '(helm-gtags-display-style 'detail))
   :bind
   (:map c-mode-base-map
-   ("C-c gs" . helm-gtags-find-symbol)
-   ("C-c gg" . helm-gtags-find-tag)
-   ("C-c gr" . helm-gtags-find-rtag)
-   ("C-c gp" . helm-gtags-find-pattern)
-   ("C-c gf" . helm-gtags-find-files)
-   ("C-c go" . helm-gtags-pop-stack)))
+   ("C-c g s" . helm-gtags-find-symbol)
+   ("C-c g g" . helm-gtags-find-tag)
+   ("C-c g r" . helm-gtags-find-rtag)
+   ("C-c g p" . helm-gtags-find-pattern)
+   ("C-c g f" . helm-gtags-find-files)
+   ("C-c g o" . helm-gtags-pop-stack)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; mini buffer and completion
@@ -659,6 +689,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; major mode
 (use-package emacs
+  :straight (:type built-in)
   :config
   ;; use treesitter enabled mode than normal mode
   (setq major-mode-remap-alist
@@ -675,6 +706,14 @@
   :hook
   ;; Auto parenthesis matching
   (prog-mode . electric-pair-mode))
+
+(use-package sh-mode
+  :straight (:type built-in)
+  :defer t
+  :custom
+  (indent-tabs-mode t)
+  (tab-width 8)
+  (sh-basic-offset 8))
 
 (use-package rust-mode
   :defer t)
@@ -778,6 +817,7 @@
 ;; eglot
 ;; https://www.masteringemacs.org/article/seamlessly-merge-multiple-documentation-sources-eldoc
 (use-package eglot
+  :disabled
   :hook
   (((python-mode ruby-mode elixir-mode lua-mode) . eglot-ensure))
   :custom
@@ -827,10 +867,11 @@
 (when (display-graphic-p)
   (use-package org
     :defer t
-    :hook (org-mode . flyspell-mode)		; spell checking!
+    :hook (org-mode . flyspell-mode)		; spell checking
     :config
-    (setq org-directory (concat home-dir "org/")
-	  org-agenda-dir (concat home-dir "org/")
+    ;; agenda
+    (setq org-directory (concat home-dir "org/pages/")
+	  org-agenda-dir (concat home-dir "org/pages/")
 	  org-agenda-files (directory-files-recursively org-agenda-dir "\\.org$")
 	  org-agenda-show-all-dates nil		; hide empty day
 	  org-agenda-start-on-weekday 0		; agenda starts on sunday
@@ -844,6 +885,26 @@
 	  org-agenda-todo-ignore-deadlines nil
 	  org-agenda-todo-ignore-timestamp t
 	  org-agenda-tags-todo-honor-ignore-options t)
+
+    (setq org-capture-templates
+          '(("c" "Default Capture" entry (file "inbox.org")
+             "* TODO %?\n%U\n%i")
+            ;; Capture and keep an org-link to the thing we're currently working with
+            ("r" "Capture with Reference" entry (file "inbox.org")
+             "* TODO %?\n%U\n%i\n%a")
+            ;; Define a section
+            ("w" "Work")
+            ("wm" "Work meeting" entry (file+headline "work.org" "Meetings")
+             "** TODO %?\n%U\n%i\n%a")
+            ("wr" "Work report" entry (file+headline "work.org" "Reports")
+             "** TODO %?\n%U\n%i\n%a")))
+
+    (setq org-agenda-custom-commands
+          '(("n" "Agenda and All Todos"
+             ((agenda)
+              (todo "TODO" ((org-agenda-skip-function '(org-agenda-skip-entry-if 'scheduled 'deadline 'timestamp))))))
+            ("w" "Work" agenda ""
+             ((org-agenda-files '("work.org"))))))
 
     ;; tags
     (setq org-tag-alist '(
@@ -879,7 +940,11 @@
 		      '(org-level-5 ((t (:height 1.0))))
 		      '(org-level-6 ((t (:height 1.0)))))
 
-    ;; add visibility
+    ;; disable code block indentation
+    (setq org-src-preserve-indentation nil
+	  org-edit-src-content-indentation 0)
+
+    ;; store visibility
     (add-hook 'org-cycle-hook
 	      (lambda (symbol-state)
 		(interactive)
@@ -888,66 +953,49 @@
 		      (org-entry-put nil "visibility" "all")
 		    (org-entry-put nil "visibility" state)))))
 
-    ;; citation
-    (require 'oc-csl)
-    (add-to-list 'org-export-backends 'md)
+    ;; babel
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((dot . t)
+       (python . t)))
 
-    ;; Make org-open-at-point follow file links in the same window
-    (setf (cdr (assoc 'file org-link-frame-setup)) 'find-file)
+    (when (eq system-type 'darwin)
+      (setq org-babel-python-command "/opt/homebrew/bin/python3"
+	    python-remove-cwd-from-path nil))
 
-    ;; Make exporting quotes better
-    (setq org-export-with-smart-quotes t)
-
-    ;; Refile configuration
-    (setq org-outline-path-complete-in-steps nil)
-    (setq org-refile-use-outline-path 'file)
-
-    (setq org-capture-templates
-          '(("c" "Default Capture" entry (file "inbox.org")
-             "* TODO %?\n%U\n%i")
-            ;; Capture and keep an org-link to the thing we're currently working with
-            ("r" "Capture with Reference" entry (file "inbox.org")
-             "* TODO %?\n%U\n%i\n%a")
-            ;; Define a section
-            ("w" "Work")
-            ("wm" "Work meeting" entry (file+headline "work.org" "Meetings")
-             "** TODO %?\n%U\n%i\n%a")
-            ("wr" "Work report" entry (file+headline "work.org" "Reports")
-             "** TODO %?\n%U\n%i\n%a")))
-
-    (setq org-agenda-custom-commands
-          '(("n" "Agenda and All Todos"
-             ((agenda)
-              (todo "TODO" ((org-agenda-skip-function '(org-agenda-skip-entry-if 'scheduled 'deadline 'timestamp))))))
-            ("w" "Work" agenda ""
-             ((org-agenda-files '("work.org"))))))
-
-    ;; Advanced: Custom link types
-    ;; This example is for linking a person's 7-character ID to their page on the
-    ;; free genealogy website Family Search.
-    (setq org-link-abbrev-alist
-	  '(("family_search" . "https://www.familysearch.org/tree/person/details/%s")))
-
+    ;; display inline image
     (setq org-display-inline-images t
 	  org-display-remote-inline-images t
 	  org-redisplay-inline-images t
 	  org-startup-with-inline-images t
 	  org-image-actual-width 800)
-    (add-hook 'org-babel-after-execute-hook 'org-redisplay-inline-images)
 
     (defun org-image-resize (frame)
       (when (derived-mode-p 'org-mode)
 	(setq org-image-actual-width (/ (window-pixel-width) 2))
 	(org-redisplay-inline-images)))
     (add-hook 'window-size-change-functions 'org-image-resize)
+    (add-hook 'org-babel-after-execute-hook 'org-redisplay-inline-images)
 
-    (org-babel-do-load-languages
-     'org-babel-load-languages
-     '((dot . t)
-       (python . t)))
-    (when (eq system-type 'darwin)
-      (setq org-babel-python-command "/usr/bin/python3"
-	    python-remove-cwd-from-path nil))
+    ;; use the same window for follwing file link
+    (setf (cdr (assoc 'file org-link-frame-setup)) 'find-file)
+
+    ;; export
+    (add-to-list 'org-export-backends 'md)
+    (setq org-export-with-smart-quotes t)
+
+    ;; refile configuration
+    (setq org-outline-path-complete-in-steps nil
+	  org-refile-use-outline-path 'file)
+
+    ;; citation
+    (require 'oc-csl)
+
+    ;; use [[duckduckgo:OrgMode][org mode]]
+    ;; instead of [[https://duckduckgo.com/?q=OrgMode][org mode]]
+    (setq org-link-abbrev-alist
+	  '(("Nu Html Checker" . "https://validator.w3.org/nu/?doc=%h")
+            ("duckduckgo"      . "https://duckduckgo.com/?q=%s")))
 
     :bind
     (:map global-map
@@ -1010,7 +1058,103 @@
       ("C-c o R" . org-transclusion-remove-all)
       ("C-c o T" . org-transclusion-activate)
       ("C-c o D" . org-transclusion-deactivate)
-      ("C-c o d" . org-transclusion-detach)))))
+      ("C-c o d" . org-transclusion-detach))))
+
+  (use-package svg-tag-mode
+    :hook (org-mode . svg-tag-mode)
+    :config
+    (defconst date-re "[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}")
+    (defconst time-re "[0-9]\\{2\\}:[0-9]\\{2\\}")
+    (defconst day-re "[A-Za-z]\\{3\\}")
+    (defconst day-time-re (format "\\(%s\\)? ?\\(%s\\)?" day-re time-re))
+
+    (defun svg-progress-percent (value)
+      (save-match-data
+	(svg-image (svg-lib-concat
+		    (svg-lib-progress-bar  (/ (string-to-number value) 100.0)
+					   nil :margin 0 :stroke 2 :radius 3 :padding 2 :width 11)
+		    (svg-lib-tag (concat value "%")
+				 nil :stroke 0 :margin 0)) :ascent 'center)))
+
+    (defun svg-progress-count (value)
+      (save-match-data
+	(let* ((seq (split-string value "/"))
+               (count (if (stringp (car seq))
+			  (float (string-to-number (car seq)))
+			0))
+               (total (if (stringp (cadr seq))
+			  (float (string-to-number (cadr seq)))
+			1000)))
+	  (svg-image (svg-lib-concat
+                      (svg-lib-progress-bar (/ count total) nil
+                                            :margin 0 :stroke 2 :radius 3 :padding 2 :width 11)
+                      (svg-lib-tag value nil
+				   :stroke 0 :margin 0)) :ascent 'center))))
+
+    (setq svg-tag-tags
+	  `(
+            ;; todo / done
+            ("TODO" . ((lambda (tag) (svg-tag-make "TODO" :face 'org-todo :inverse t :margin 0))))
+            ("DONE" . ((lambda (tag) (svg-tag-make "DONE" :face 'org-done :inverse t :margin 0))))
+            ;; tags
+            (":\\([A-Za-z0-9]+\\)" . ((lambda (tag) (svg-tag-make tag))))
+            (":\\([A-Za-z0-9]+[ \-]\\)" . ((lambda (tag) tag)))
+            ;; priority
+            ("\\[#[A-Z]\\]" . ( (lambda (tag)
+				  (svg-tag-make tag :face 'org-priority
+						:beg 2 :end -1 :margin 0))))
+            ;; citation
+            ("\\(\\[cite:@[A-Za-z]+:\\)" . ((lambda (tag)
+                                              (svg-tag-make tag
+                                                            :inverse t
+                                                            :beg 7 :end -1
+                                                            :crop-right t))))
+            ("\\[cite:@[A-Za-z]+:\\([0-9]+\\]\\)" . ((lambda (tag)
+                                                       (svg-tag-make tag
+								     :end -1
+								     :crop-left t))))
+            ;; active date
+            (,(format "\\(<%s>\\)" date-re) .
+             ((lambda (tag)
+		(svg-tag-make tag :beg 1 :end -1 :margin 0))))
+            (,(format "\\(<%s \\)%s>" date-re day-time-re) .
+             ((lambda (tag)
+		(svg-tag-make tag :beg 1 :inverse nil :crop-right t :margin 0))))
+            (,(format "<%s \\(%s>\\)" date-re day-time-re) .
+             ((lambda (tag)
+		(svg-tag-make tag :end -1 :inverse t :crop-left t :margin 0))))
+            ;; inactive date
+            (,(format "\\(\\[%s\\]\\)" date-re) .
+             ((lambda (tag)
+		(svg-tag-make tag :beg 1 :end -1 :margin 0 :face 'org-date))))
+            (,(format "\\(\\[%s \\)%s\\]" date-re day-time-re) .
+             ((lambda (tag)
+		(svg-tag-make tag :beg 1 :inverse nil :crop-right t :margin 0 :face 'org-date))))
+            (,(format "\\[%s \\(%s\\]\\)" date-re day-time-re) .
+             ((lambda (tag)
+		(svg-tag-make tag :end -1 :inverse t :crop-left t :margin 0 :face 'org-date))))
+            ;; progress
+            ("\\(\\[[0-9]\\{1,3\\}%\\]\\)" . ((lambda (tag)
+						(svg-progress-percent (substring tag 1 -2)))))
+            ("\\(\\[[0-9]+/[0-9]+\\]\\)" . ((lambda (tag)
+                                              (svg-progress-count (substring tag 1 -1)))))
+            ))
+
+    ;; workaround to apply svg-tag on agenda
+    (defun eli-org-agenda-show-svg ()
+      (let* ((case-fold-search nil)
+             (keywords (mapcar #'svg-tag--build-keywords svg-tag--active-tags))
+             (keyword (car keywords)))
+	(while keyword
+          (save-excursion
+            (while (re-search-forward (nth 0 keyword) nil t)
+              (overlay-put (make-overlay
+                            (match-beginning 0) (match-end 0))
+                           'display  (nth 3 (eval (nth 2 keyword)))) ))
+          (pop keywords)
+          (setq keyword (car keywords)))))
+    (add-hook 'org-agenda-finalize-hook #'eli-org-agenda-show-svg)
+    ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; terminal
@@ -1152,145 +1296,360 @@ but do not execute them."
   :init
   (dirvish-override-dired-mode)
   :custom
-  ;(dirvish-side-follow-mode)
-  (dirvish-quick-access-entries ; It's a custom option, `setq' won't work
-   '(("h" "~/"                          "Home")
-     ("d" "~/Downloads/"                "Downloads")
-     ("o" "~/org/"                      "org")
-     ("t" "~/.local/share/Trash/files/" "TrashCan")))
+  (dirvish-side-follow-mode)
+  (dirvish-quick-access-entries
+   (cond ((eq system-type 'windows-nt)
+	  (list (list "h" home-dir                      "Home")
+		(list "o" (concat home-dir "org")       "org")
+		(list "d" (concat home-dir "Downloads") "Downloads")
+		(list "c" (concat home-dir "Documents") "Documents")
+		(list "p" (concat home-dir "Pictures")  "Pictures")
+		(list "m" (concat home-dir "Music")     "Music")
+		(list "v" (concat home-dir "Videos")    "Videos")))
+	 ((eq system-type 'darwin)
+	  (list (list "h" home-dir                      "Home")
+		(list "o" (concat home-dir "org")       "org")
+		(list "d" (concat home-dir "Downloads") "Downloads")
+		(list "c" (concat home-dir "Documents") "Documents")
+		(list "p" (concat home-dir "Pictures")  "Pictures")
+		(list "m" (concat home-dir "Music")     "Music")
+		(list "v" (concat home-dir "Movies")    "Movies")))
+	 (t
+	  (list (list "h" home-dir                      "Home")
+		(list "o" (concat home-dir "org")       "org")
+		(list "d" (concat home-dir "Downloads") "Downloads")
+		(list "c" (concat home-dir "Documents") "Documents")
+		(list "p" (concat home-dir "Pictures")  "Pictures")
+		(list "m" (concat home-dir "Music")     "Music")
+		(list "v" (concat home-dir "Videos")    "Videos")))))
   :config
-  ;; fix for Listing directory failed but ‘access-file’ worked
-  (when (eq system-type 'darwin)
-    (setq insert-directory-program "/opt/homebrew/bin/gls"))
-  ;(dirvish-peek-mode) ; Preview files in minibuffer
-  ;; (dirvish-side-follow-mode) ; similar to `treemacs-follow-mode'
+  ;; appearance
   (setq dirvish-header-line-height '(16 . 16)
-	dirvish-header-line-format
-	'(:left (path) :right (free-space))
-  	dirvish-mode-line-height '(16 . 16)
+	dirvish-header-line-format '(:left (path) :right (free-space))
+	dirvish-mode-line-height '(16 . 16)
 	dirvish-mode-line-format
-	'(:left (sort file-time " " file-size symlink) :right (omit yank index)))
-  (setq dirvish-attributes
-        '(nerd-icons file-time file-size collapse subtree-state vc-state git-msg))
-  (setq delete-by-moving-to-trash t)
-  (setq dired-listing-switches
-        "-l --almost-all --human-readable --group-directories-first --no-group")
+	'(:left (sort file-time " " file-size symlink) :right (omit yank index))
+	dirvish-attributes
+	'(nerd-icons file-size file-time collapse subtree-state vc-state git-msg))
+
+  ;; behavior
+  (setq delete-by-moving-to-trash t
+	dired-listing-switches
+	"-l --almost-all --human-readable --group-directories-first --no-group")
+  (dirvish-peek-mode)		; preview files in minibuffer
+  (dirvish-side-follow-mode)	; similar to `treemacs-follow-mode'
 
   ;; use an external app
-  (setq dirvish-external-exts nil)
-  (setq dired-guess-shell-alist-user nil)
-  (let ((dirvish-default-app (cond ((eq system-type 'darwin) "open")
-				   ((eq system-type 'windows-nt) "start")
-				   (t "xdg-open")))
-	(dirvish-external-apps '(("docx" "open -a 'Microsoft Word'")
-				 ("doc" ,dirvish-default-app)
-				 ("xlsx" "open -a 'Microsoft Excel'")
-				 ("xls" ,dirvish-default-app)
-				 ("pptx" "open -a 'Microsoft PowerPoint'")
-				 ("ppt" ,dirvish-default-app))))
-    (dolist (element dirvish-external-apps)
-      (add-to-list 'dirvish-external-exts (car element) t)
-      (add-to-list 'dired-guess-shell-alist-user (list (concat "\\." (car element) "\\'") (cdr element)))))
+  (cond
+   ((eq system-type 'windows-nt)
+    (setq dirvish-default-app "start"
+	  dirvish-external-apps '(("docx" ,dirvish-default-app)
+				  ("doc" ,dirvish-default-app)
+				  ("xlsx" ,dirvish-default-app)
+				  ("xls" ,dirvish-default-app)
+				  ("pptx" ,dirvish-default-app)
+				  ("ppt" ,dirvish-default-app)
+				  ("mkv" "mpv")
+				  ("mp4" "mpv"))))
+   ((eq system-type 'darwin)
+    ;; fix for Listing directory failed but ‘access-file’ worked
+    (setq insert-directory-program "gls")
+    (setq dirvish-default-app "open"
+	  dirvish-external-apps '(("docx" "open -a 'Microsoft Word'")
+				  ("doc" ,dirvish-default-app)
+				  ("xlsx" "open -a 'Microsoft Excel'")
+				  ("xls" ,dirvish-default-app)
+				  ("pptx" "open -a 'Microsoft PowerPoint'")
+				  ("ppt" ,dirvish-default-app)
+				  ("mkv" "mpv")
+				  ("mp4" "mpv"))))
+   (t
+    (setq dirvish-default-app "xdg-open"
+	  dirvish-external-apps '(("docx" ,dirvish-default-app)
+				  ("doc" ,dirvish-default-app)
+				  ("xlsx" ,dirvish-default-app)
+				  ("xls" ,dirvish-default-app)
+				  ("pptx" ,dirvish-default-app)
+				  ("ppt" ,dirvish-default-app)
+				  ("mkv" "mpv")
+				  ("mp4" "mpv")))))
   (defun dirvish-open-binaries-externally (file fn)
     "When FN is not `dired', open binary FILE externally."
     (when-let* (((not (eq fn 'dired)))
 		((file-exists-p file))
 		((not (file-directory-p file)))
-		((member (downcase (or (file-name-extension file) ""))
-			 dirvish-external-exts)))
+		(ext (downcase (or (file-name-extension file) "")))
+		(pair (assoc ext dirvish-external-apps))
+		(app (nth 1 pair)))
       ;; return t to terminate `dirvish--find-entry'.
-      (prog1 t (dired-do-open))))
+      (if (string-blank-p app)
+	  (prog1 t (dired-do-open))
+	(prog1 t (start-process "" nil app file)))))
   (add-hook 'dirvish-find-entry-hook #'dirvish-open-binaries-externally)
 
-  :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
-  (:map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
-   ("<left>"  . dired-up-directory)
-   ("<right>" . dired-find-file)
-   ("u"       . dired-up-directory)
-   ("o"       . dired-find-file-other-window)
-   ("a"       . dirvish-quick-access)
-   ("f"       . dirvish-file-info-menu)
-   ("y"       . dirvish-yank-menu)
-   ("N"       . dirvish-narrow)
-   ("^"       . dirvish-history-last)
-   ("h"       . dirvish-history-jump) ; remapped `describe-mode'
-   ("s"       . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
-   ("v"       . dirvish-vc-menu)      ; remapped `dired-view-file'
-   ("TAB"     . dirvish-subtree-toggle)
-   ("M-f"     . dirvish-history-go-forward)
-   ("M-b"     . dirvish-history-go-backward)
-   ("M-l"     . dirvish-ls-switches-menu)
-   ("M-m"     . dirvish-mark-menu)
-   ("M-t"     . dirvish-layout-toggle)
-   ("M-s"     . dirvish-setup-menu)
-   ("M-e"     . dirvish-emerge-menu)
-   ("M-j"     . dirvish-fd-jump)))
+  ;; toggle mark
+  (defun dired-toggle-mark (arg &optional interactive)
+    (interactive (list current-prefix-arg t) dired-mode)
+    (save-excursion
+      (beginning-of-line)
+      (let ((dired-marker-char (if (equal ?\s (following-char)) ?* ?\s)))
+	(dired-mark arg interactive)))
+    (forward-line 1))
 
+  :bind
+  (:map dirvish-mode-map ; dirvish inherits `dired-mode-map'
+	("<left>"  . dired-up-directory)
+	("<right>" . dired-find-file)
+	("u"       . dired-up-directory)
+	("e"       . dired-do-open)
+	("o"       . dired-find-file-other-window)
+	("m"       . dired-toggle-mark)
+	("a"       . dirvish-quick-access)
+	("f"       . dirvish-file-info-menu)
+	("y"       . dirvish-yank-menu)
+	("N"       . dirvish-narrow)
+	("^"       . dirvish-history-last)
+	("h"       . dirvish-history-jump)	; remapped `describe-mode'
+	("s"       . dirvish-quicksort)		; remapped `dired-sort-toggle-or-edit'
+	("v"       . dirvish-vc-menu)		; remapped `dired-view-file'
+	("TAB"     . dirvish-subtree-toggle)
+	("M-f"     . dirvish-history-go-forward)
+	("M-b"     . dirvish-history-go-backward)
+	("M-l"     . dirvish-ls-switches-menu)
+	("M-m"     . dirvish-mark-menu)
+	("M-t"     . dirvish-layout-toggle)
+	("M-s"     . dirvish-setup-menu)
+	("M-e"     . dirvish-emerge-menu)
+	("M-j"     . dirvish-fd-jump)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; email
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; notmuch
 (use-package notmuch
   :defer t
   :commands notmuch)
 
+;; oauth2
+(use-package oauth2
+  :defer t)
+
+;; auth source xoauth2
+(use-package auth-source-xoauth2-plugin
+  :defer t
+  :custom
+  (auth-source-xoauth2-plugin-mode t)
+  :config
+  (setq epa-pinentry-mode 'loopback))
+
 ;; gnus
 (use-package gnus
   :defer t
+  :requires (oauth2 auth-source-xoauth2-plugin plstore)
   :config
+  ;; use the same passphrase with gpg key
+  (add-to-list 'plstore-encrypt-to "0x47B942FABCD66FFD")
+
   ;; user
-  (setq user-mail-address "seunguk.shin@gmail.com"
-	user-full-name "Seunguk Shin")
+  ;(setq user-mail-address "id@gmail.com"
+  (setq user-mail-address "id@outlook.com"
+	user-full-name "id")
 
   ;; server
+  (setq auth-sources
+        (list (expand-file-name ".authinfo.json.gpg" home-dir)))
   (setq gnus-select-method '(nnnil ""))
-  (setq gnus-secondary-select-methods
-	'((nnimap "seunguk.shin@gmail.com"
-		  (nnimap-address "imap.gmail.com")
-		  (nnimap-server-port 993)
-		  (nnimap-stream ssl)
-		  (nnir-search-engine imap)
-		  (nnmail-expiry-target "nnimap+seunguk.shin@gmail.com:[Gmail]/Trash")
-		  (nnmail-expiry-wait immediate))
-	  (nnmaildir "archives"
-		     (directory (concat home-dir "gnus/archives"))
-		     (get-new-mail nil)
-		     (nnir-search-engine notmuch))
-	  (nntp "nntp.lore.kernel.org"
-		(nntp-address "nntp.lore.kernel.org"))))
-
-  (setq smtpmail-smtp-server "smtp.gmail.com"
+;  (add-to-list 'gnus-secondary-select-methods
+;	       '(nnimap "id@gmail.com"
+;			(nnimap-user "id@gmail.com")
+;			(nnimap-address "imap.gmail.com")
+;			(nnimap-server-port 993)
+;			(nnimap-stream ssl)
+;			(nnimap-authenticator xoauth2)
+;			(nnir-search-engine imap)
+;			(nnmail-expiry-target "nnimap+id@gmail.com:[Gmail]/Trash")
+;			(nnmail-expiry-wait immediate)))
+  (add-to-list 'gnus-secondary-select-methods
+	       '(nnimap "id@outlook.com"
+			(nnimap-user "id@outlook.com")
+			(nnimap-address "outlook.office365.com")
+			(nnimap-server-port 993)
+			(nnimap-stream ssl)
+			(nnimap-authenticator xoauth2)
+			(nnir-search-engine imap)
+			(nnmail-expiry-target "nnimap+id@outlook.com:Deleted")
+			(nnmail-expiry-wait immediate)))
+  (add-to-list 'gnus-secondary-select-methods
+	       '(nnmaildir "archives"
+			   (directory (concat home-dir "gnus/archives"))
+ 			   (get-new-mail nil)
+			   (nnir-search-engine notmuch)))
+  (add-to-list 'gnus-secondary-select-methods
+	       '(nntp "nntp.lore.kernel.org"
+		      (nntp-address "nntp.lore.kernel.org")))
+;  (setq smtpmail-smtp-server "smtp.gmail.com"
+;	smtpmail-smtp-user "id@gmail.com"
+;	smtpmail-smtp-service 587
+;	smtpmail-stream-type 'starttls
+;	send-mail-function 'smtpmail-send-it
+;	message-send-mail-function 'smtpmail-send-it)
+  (setq smtpmail-smtp-server "smtp-mail.outlook.com"
+	smtpmail-smtp-user "id@outlook.com"
 	smtpmail-smtp-service 587
+	smtpmail-stream-type 'starttls
 	send-mail-function 'smtpmail-send-it
 	message-send-mail-function 'smtpmail-send-it)
 
-  (require 'nnir)
   (setq nnir-notmuch-program "notmuch"
 	nnir-notmuch-remove-prefix (concat home-dir "gnus/archives/"))
 
-  (setq gnus-asynchronous t
-	gnus-fetch-old-headers t
-	gnus-auto-select-first nil
-	gnus-check-new-newsgroups nil
-	gnus-check-bogus-newsgroups nil
-	gnus-check-new-news nil
-	gnus-read-active-file nil)
 
-  (setq mm-text-html-renderer 'w3m
+
+
+
+
+
+
+
+
+  ;; behavior
+  (setq gnus-asynchronous t
+	gnus-use-header-prefetch 30	; prefetch 30 headers to the next group
+	gnus-fetch-old-headers t	; fetch old headers to build threads
+	gnus-large-newsgroup nil	; fetch all articles always
+	gnus-check-new-newsgroups nil	; don't check new group when starting
+	gnus-use-full-window nil)	; use split window
+
+  ;; cache articles for imap
+  (setq gnus-use-cache t
+	gnus-cache-directory temp-dir
+	gnus-cache-enter-articles '(ticked dormant read unread)
+	gnus-cache-remove-articles nil
+	gnus-cacheable-groups "^nnimap")
+
+  ;; prefer text format
+  (setq mm-discouraged-alternatives '("text/html" "text/richtext")
+	mm-text-html-renderer 'shr
 	mm-inline-text-html-with-images t
 	mm-w3m-safe-url-regexp nil)
 
-  ;; summary
-  (setq gnus-parameters
-	'((".*"
-	   (display . all))))
+  ;; appearance
 
-  (setq-default gnus-summary-line-format "%U%R%z  %(%&user-date;  %-15,15f  %B%s%)\n"
-		gnus-user-date-format-alist '((t . "%Y-%m-%d %H:%M"))
-		gnus-summary-thread-gathering-function 'gnus-gather-threads-by-references
-		gnus-thread-sort-functions '(gnus-thread-sort-by-date)
-		gnus-sum-thread-tree-false-root ""
-		gnus-sum-thread-tree-indent " "
-		gnus-sum-thread-tree-leaf-with-other "├► "
-		gnus-sum-thread-tree-root ""
-		gnus-sum-thread-tree-single-leaf "╰► "
-		gnus-sum-thread-tree-vertical "│"))
+  ;; apperance - group (topic)
+  (add-hook 'gnus-group-mode-hook 'gnus-topic-mode)
+  (eval-after-load 'gnus-topic
+    '(progn
+       (setq gnus-message-archive-group '((format-time-string "%Y-%m"))
+	     gnus-topic-topology '(("Gnus" visible)
+                                   (("misc" visible))
+                                   (("id@outlook.com" visible nil nil)))
+	     gnus-topic-alist '(("Gnus")
+				("id@outlook.com"
+				 "nnimap+id@outlook.com:Inbox"
+				 "nnimap+id@outlook.com:Later"
+				 "nnimap+id@outlook.com:Archive"
+				 "nnimap+id@outlook.com:Sent"
+				 "nnimap+id@outlook.com:Deleted")
+				("misc"
+				 "nnmaildir+archives:2025-01"
+				 "nndraft:drafts")))
+       (gnus-topic-set-parameters "id@outlook.com"
+				  '((gnus-use-scoring nil) (display . all)))))
+
+  ;; appearance - summary
+  (defun thread-sort-function (t1 t2)
+    (message "t1: %s: %s: %s"
+	     (mail-header-date (gnus-thread-header t1))
+	     (format-time-string "%m-%d" (gnus-thread-latest-date t1))
+	     (mail-header-subject (gnus-thread-header t1)))
+    (setq current-header (gnus-thread-header t1))
+    (dolist (element (flatten-tree t1))
+      (message "date: %s vs. %s"
+	       (mail-header-date current-header)
+	       (mail-header-date element)))
+    (setq current-header (gnus-thread-header t2))
+    (dolist (element (flatten-tree t2))
+      (message "date: %s vs. %s"
+	       (mail-header-date current-header)
+	       (mail-header-date element)))
+    (time-less-p
+     (gnus-thread-latest-date t1)
+     (gnus-thread-latest-date t2)))
+  (setq gnus-summary-line-format "%U%R%z  %(%&user-date;  %-15,15f  %B%s%)\n"
+	gnus-user-date-format-alist '((t . "%Y-%m-%d %H:%M"))
+	gnus-sum-thread-tree-false-root ""
+	gnus-sum-thread-tree-indent " "
+	gnus-sum-thread-tree-leaf-with-other "├► "
+	gnus-sum-thread-tree-root ""
+	gnus-sum-thread-tree-single-leaf "╰► "
+	gnus-sum-thread-tree-vertical "│"
+	gnus-summary-thread-gathering-function 'gnus-gather-threads-by-references
+	gnus-thread-sort-functions '((not gnus-thread-sort-by-most-recent-date))
+	;gnus-thread-sort-functions 'thread-sort-function
+	gnus-subthread-sort-functions '(gnus-thread-sort-by-number
+					gnus-thread-sort-by-date)
+        gnus-sort-gathered-threads-function 'gnus-thread-sort-by-number
+        gnus-thread-ignore-subject t)
+
+  ;; check email periodically
+  (gnus-demon-add-handler 'gnus-demon-scan-mail 5 5)
+  (gnus-demon-init))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; gitlab
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; gitlab
+(use-package lab
+  :defer t
+  :straight (lab
+	     :type git
+	     :host github
+	     :repo "isamert/lab.el")
+  :config
+  (setq lab-host "https://gitlab.geo.arm.com")
+
+  ;(setq auth-sources '("~/.ssh/.authinfo.gpg"))
+  (setq lab-token "-ey1zJ2reqVDKZByPCZj")
+
+  (setq lab-group "12478"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; slack
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; slack
+(use-package emacs-slack
+  :defer t
+  :straight (emacs-slack
+	     :type git
+	     :host github
+	     :repo "emacs-slack/emacs-slack"))
+
+;; alert
+(use-package alert
+  :defer t
+  :commands (alert)
+  :init
+  (setq alert-default-style 'notifier))
+
+;; circe
+(use-package circe
+  :defer t)
+
+;; emojify
+(use-package emojify
+  :defer t)
+
+;; request
+(use-package request
+  :defer t)
+
+;; websocket
+(use-package websocket
+  :defer t)
+
+;; ts
+(use-package ts
+  :defer t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; xwidget
