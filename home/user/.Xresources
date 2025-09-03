@@ -1,0 +1,119 @@
+!! Disable XIM for Emacs
+Emacs*useXIM: false
+
+!! Name
+URxvt.termName:               rxvt-unicode
+
+!! Extra keys
+URxvt.keysym.Home:            \033[1~
+URxvt.keysym.End:             \033[4~
+URxvt.keysym.Control-Up:      \033[1;5A
+URxvt.keysym.Control-Down:    \033[1;5B
+URxvt.keysym.Control-Left:    \033[1;5D
+URxvt.keysym.Control-Right:   \033[1;5C
+
+!! Extensions
+URxvt.perl-lib: /home/shin/.urxvt/perl/
+URxvt.perl-ext-common: default,selection-to-clipboard,matcher,resize-font,fullscreen
+! Open urls in browser with Control-Click
+URxvt.url-launcher: /usr/bin/firefox
+URxvt.matcher.button: C1
+! Change font size on Control-Plus/Minus
+URxvt.keysym.Control-0x2b: resize-font:bigger
+URxvt.keysym.Control-0x2d: resize-font:smaller
+! Fullscreen
+URxvt.keysym.F11: fullscreen:switch
+
+!! Fonts
+Xft.dpi:                      96
+Xft.antialias:                true
+Xft.hinting:                  true
+Xft.hintstyle:                hintfull
+Xft.rgba:                     rgb
+Xft.autohint:                 false
+Xft.hintstyle:                hintslight
+Xft.lcdfilter:                lcddefault
+URxvt*font:                   xft:D2Coding:pixelsize=16:weight=regular,xft:Noto Sans Mono CJK SC:Pixelsize=16:weight=regular
+URxvt*boldFont:               xft:D2Coding:pixelsize=16:weight=bold,xft:Noto Sans Mono CJK SC:Pixelsize=16:weight=bold
+URxvt.depth:                  32
+!URxvt.letterSpace:            -1
+
+!! Cursor
+Xcursor.theme:                Chameleon-Pearl-Regular-0.5
+Xcursor.size:                 0
+URxvt*cursorBlink:            true
+
+!! Scroll
+URxvt.scrollBar:              false
+URxvt.mouseWheelScrollPage:   false
+URxvt.saveLines:              1000000
+URxvt*scrollTtyOutput:        false
+URxvt*scrollTtyKeypress:      true
+
+!! Color
+URxvt.background:             [80]#06060a
+URxvt.foreground:             grey
+URxvt.cursorColor:            #d1d1d1
+! Monokai
+!URxvt.color0:                 #272822    ! black
+!URxvt.color8:                 #75715e
+!URxvt.color1:                 #f92672    ! red
+!URxvt.color9:                 #f92672
+!URxvt.color2:                 #a6e22e    ! green
+!URxvt.color10:                #a6e22e
+!URxvt.color3:                 #f4bf75    ! yellow
+!URxvt.color11:                #f4bf75
+!URxvt.color4:                 #66d9ef    ! blue
+!URxvt.color12:                #66d9ef
+!URxvt.color5:                 #ae81ff    ! magenta
+!URxvt.color13:                #ae81ff
+!URxvt.color6:                 #a1efe4    ! cyan
+!URxvt.color14:                #a1efe4
+!URxvt.color7:                 #f8f8f2    ! white
+!URxvt.color15:                #f9f8f5
+! Tango
+URxvt.color0:                 rgb:00/00/00
+URxvt.color1:                 rgb:CC/00/00
+URxvt.color2:                 rgb:4E/9A/06
+URxvt.color3:                 rgb:C4/A0/00
+URxvt.color4:                 rgb:34/65/A4
+URxvt.color5:                 rgb:75/50/7B
+URxvt.color6:                 rgb:06/98/9A
+URxvt.color7:                 rgb:D3/D7/CF
+URxvt.color8:                 rgb:55/57/53
+URxvt.color9:                 rgb:EF/29/29
+URxvt.color10:                rgb:8A/E2/34
+URxvt.color11:                rgb:FC/E9/4F
+URxvt.color12:                rgb:72/9F/CF
+URxvt.color13:                rgb:AD/7F/A8
+URxvt.color14:                rgb:34/E2/E2
+URxvt.color15:                rgb:EE/EE/EC
+URxvt.colorBD:                rgb:ff/ff/ff
+
+!! Fonts
+UXTerm*faceName:              D2Coding
+UXTerm*faceSize:              12
+UXTerm*renderFont:            true
+
+!! Color
+UXTerm*background:            #06060a
+UXTerm*foreground:            grey
+UXTerm*cursorColor:           #d1d1d1
+! Tango
+UXTerm*color0:                 rgb:00/00/00
+UXTerm*color1:                 rgb:CC/00/00
+UXTerm*color2:                 rgb:4E/9A/06
+UXTerm*color3:                 rgb:C4/A0/00
+UXTerm*color4:                 rgb:34/65/A4
+UXTerm*color5:                 rgb:75/50/7B
+UXTerm*color6:                 rgb:06/98/9A
+UXTerm*color7:                 rgb:D3/D7/CF
+UXTerm*color8:                 rgb:55/57/53
+UXTerm*color9:                 rgb:EF/29/29
+UXTerm*color10:                rgb:8A/E2/34
+UXTerm*color11:                rgb:FC/E9/4F
+UXTerm*color12:                rgb:72/9F/CF
+UXTerm*color13:                rgb:AD/7F/A8
+UXTerm*color14:                rgb:34/E2/E2
+UXTerm*color15:                rgb:EE/EE/EC
+UXTerm*colorBD:                rgb:ff/ff/ff

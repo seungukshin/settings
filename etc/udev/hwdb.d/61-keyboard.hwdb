@@ -1,0 +1,62 @@
+# Kinesis Advantage2 Keyboard
+evdev:name:Kinesis Advantage2 Keyboard:dmi:bvn*:bvr*:bd*:svn*:pn*:pvr*
+ KEYBOARD_KEY_70029=delete
+ KEYBOARD_KEY_7004c=esc
+ KEYBOARD_KEY_70045=rightmeta
+
+# ThinkPad Compact Bluetooth Keyboard with TrackPoint
+evdev:name:ThinkPad Compact Bluetooth Keyboard with TrackPoint:dmi:bvn*:bvr*:bd*:svn*:pn*:pvr*
+ KEYBOARD_KEY_70029=grave
+ KEYBOARD_KEY_70035=esc
+ KEYBOARD_KEY_70039=leftctrl
+ KEYBOARD_KEY_700e0=capslock
+
+# Switch Keyboard
+evdev:name:Chicony ACER Keyboard:dmi:bvn*:bvr*:bd*:svn*:pn*:pvr*
+ KEYBOARD_KEY_70029=grave
+ KEYBOARD_KEY_70035=esc
+ KEYBOARD_KEY_70039=leftctrl
+ KEYBOARD_KEY_700e0=capslock
+
+# Hypers Keyboard
+evdev:input:b0011v0001p0001*
+ KEYBOARD_KEY_3a=leftctrl
+ KEYBOARD_KEY_1d=capslock
+ KEYBOARD_KEY_29=esc
+ KEYBOARD_KEY_01=grave
+
+# Microdia Foot Switch
+evdev:input:b0003v0C45p7404*
+ KEYBOARD_KEY_70004=leftctrl
+ KEYBOARD_KEY_70005=leftalt
+ KEYBOARD_KEY_70006=leftshift
+
+# ATEN International Co., Ltd CS682 2-Port USB 2.0 DVI KVM Switch
+evdev:input:b0003v0557p2213*
+ KEYBOARD_KEY_70035=esc
+ KEYBOARD_KEY_70029=grave
+
+# Bluetooth Apple Magic Keyboard 2
+evdev:input:b0005v004Cp0267*
+ ID_MODEL_FROM_DATABASE=Magic Keyboard 2
+ KEYBOARD_KEY_70039=leftctrl
+ KEYBOARD_KEY_700e0=capslock
+ KEYBOARD_KEY_70035=esc
+ KEYBOARD_KEY_70029=grave
+ KEYBOARD_KEY_c00b8=compose
+
+# USB Apple Magic Keyboard 2
+evdev:input:b0003v05ACp0267*
+ ID_MODEL_FROM_DATABASE=USB Magic Keyboard 2
+ KEYBOARD_KEY_70039=leftctrl
+ KEYBOARD_KEY_700e0=capslock
+ KEYBOARD_KEY_70035=esc
+ KEYBOARD_KEY_70029=grave
+ KEYBOARD_KEY_c00b8=compose
+keyboard:usb:v05ACp0267*
+ ID_MODEL_FROM_DATABASE=USB Magic Keyboard 2
+ KEYBOARD_KEY_70039=leftctrl
+ KEYBOARD_KEY_700e0=capslock
+ KEYBOARD_KEY_70035=esc
+ KEYBOARD_KEY_70029=grave
+ KEYBOARD_KEY_c00b8=compose
