@@ -1,0 +1,55 @@
+################################################################################
+# gmail.com
+################################################################################
+
+IMAPAccount gmail.com
+Host imap.gmail.com
+User id@gmail.com
+Port 993
+PassCmd "~/bin/mutt_oauth2.py ~/.mutt/id@gmail.com.gpg"
+TLSType IMAPS
+AuthMechs XOAUTH2
+
+IMAPStore gmail.com-remote
+Account gmail.com
+
+MaildirStore gmail.com-local
+Subfolders Verbatim
+Path ~/mail/gmail.com/
+Inbox ~/mail/gmail.com/Inbox
+
+Channel gmail.com
+Far :gmail.com-remote:
+Near :gmail.com-local:
+Patterns *
+Create Both
+Expunge Both
+SyncState *
+
+################################################################################
+# outlook.com
+################################################################################
+
+IMAPAccount outlook.com
+Host outlook.office365.com
+User id@outlook.com
+Port 993
+PassCmd "~/bin/mutt_oauth2.py ~/.mutt/id@outlook.com.gpg"
+TLSType IMAPS
+AuthMechs XOAUTH2
+
+IMAPStore outlook.com-remote
+Account outlook.com
+
+MaildirStore outlook.com-local
+Subfolders Verbatim
+Path ~/mail/outlook.com/
+Inbox ~/mail/outlook.com/Inbox
+
+Channel outlook.com
+Far :outlook.com-remote:
+Near :outlook.com-local:
+Patterns *
+Create Both
+Expunge Both
+SyncState *

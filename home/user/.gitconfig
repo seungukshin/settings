@@ -1,0 +1,21 @@
+[diff]
+	tool = vimdiff
+[difftool]
+	prompt = false
+[alias]
+	d = difftool
+[user]
+	email = user@gmail.com
+	name = user
+[core]
+	editor = vi
+[http]
+#	proxy = ip:port
+#	sslVerify = false
+#	noproxy = localhost,ip
+[color]
+	ui = true
+[push]
+	default = simple
+[alias]
+	l = log --color --all --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset' --abbrev-commit

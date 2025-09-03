@@ -1,0 +1,76 @@
+#!/usr/bin/env sh
+
+#
+# for this to work you must configure sudo such that
+# it will be able to run the command without password
+#
+# see this wiki page for information:
+#  - https://github.com/koekeishiya/yabai/wiki/Installing-yabai-(latest-release)#configure-scripting-addition
+#
+# yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
+# sudo yabai --load-sa
+#
+
+# global settings
+yabai -m config                                 \
+    external_bar                 all:30:0       \
+    menubar_opacity              0.70           \
+    mouse_follows_focus          off            \
+    focus_follows_mouse          off            \
+    display_arrangement_order    default        \
+    window_origin_display        default        \
+    window_placement             second_child   \
+    window_zoom_persist          on             \
+    window_shadow                on             \
+    window_animation_duration    0.0            \
+    window_animation_easing      ease_out_circ  \
+    window_opacity_duration      0.0            \
+    active_window_opacity        0.90           \
+    normal_window_opacity        0.70           \
+    window_opacity               on             \
+    insert_feedback_color        0xffd75f5f     \
+    split_ratio                  0.50           \
+    split_type                   auto           \
+    auto_balance                 off            \
+    top_padding                  0              \
+    bottom_padding               0              \
+    left_padding                 0              \
+    right_padding                0              \
+    window_gap                   0              \
+    window_border                off            \
+    layout                       bsp            \
+    mouse_modifier               alt            \
+    mouse_action1                move           \
+    mouse_action2                resize         \
+    mouse_drop_action            stack
+    #layout                       stack or bsp
+
+yabai -m rule --add app='System Settings' manage=off
+yabai -m rule --add app='Cisco Secure Client' manage=off
+yabai -m rule --add app='Activity Monitor' manage=off
+yabai -m rule --add app='Thunderbird' title='Reminder' manage=off
+yabai -m rule --add app='Ice' manage=off
+yabai -m rule --add app='GoldenDict' manage=off
+yabai -m rule --add app=Emacs manage=on
+
+#yabai -m signal --add event=window_focused action='yabai -m window $YABAI_WINDOW_ID --insert stack'
+#yabai -m signal --add event=application_front_switched action='yabai -m window --insert stack'
+#yabai -m signal --add event=application_terminated action='yabai -m window --insert stack'
+#yabai -m signal --add event=window_destroyed action='yabai -m window --insert stack'
+
+#yabai -m signal --add event=window_focused action="curl http://localhost:7779/yabai/spaces/refresh && curl http://localhost:7776/yabai/windows/refresh" label="Refresh simple-bar spaces & windows when focused application changes"
+#yabai -m signal --add event=window_resized action="curl http://localhost:7776/yabai/spaces/refresh && curl http://localhost:7776/yabai/windows/refresh" label="Refresh simple-bar spaces & windows when a window is resized"
+#yabai -m signal --add event=window_destroyed action="curl http://localhost:7776/yabai/spaces/refresh && curl http://localhost:7776/yabai/windows/refresh" label="Refresh simple-ba spaces & windows when an application window is closed"
+#yabai -m signal --add event=space_changed action="curl http://localhost:7776/yabai/spaces/refresh && curl http://localhost:7776/yabai/windows/refresh" label="Refresh simple-bar spaces & windows on space change"
+#yabai -m signal --add event=display_changed action="curl http://localhost:7776/yabai/spaces/refresh && curl http://localhost:7776/yabai/windows/refresh" label="Refresh simple-bar spaces & windows on display focus change"
+#yabai -m signal --add event=window_title_changed action="curl http://localhost:7776/yabai/spaces/refresh && curl http://localhost:7776/yabai/windows/refresh" label="Refresh simple-bar spaces & windows when current window title changes"
+#yabai -m signal --add event=space_destroyed action="curl http://localhost:7776/yabai/spaces/refresh && curl http://localhost:7776/yabai/windows/refresh" label="Refresh simple-bar spaces & windows on space removal"
+#yabai -m signal --add event=space_created action="curl http://localhost:7776/yabai/spaces/refresh && curl http://localhost:7776/yabai/windows/refresh" label="Refresh simple-bar spaces & windows on space creation"
+#yabai -m signal --add event=application_activated action="curl http://localhost:7776/yabai/spaces/refresh && curl http://localhost:7776/yabai/windows/refresh" label="Refresh simple-bar spaces & windows when application is activated"
+#yabai -m signal --add event=display_added action="curl http://localhost:7776/yabai/displays/refresh" label="Refresh simple-bar displays when a new dispay is added"
+#yabai -m signal --add event=display_removed action="curl http://localhost:7776/yabai/displays/refresh" label="Refresh simple-bar displays when a dispay is removed"
+#yabai -m signal --add event=display_moved action="curl http://localhost:7776/yabai/displays/refresh" label="Refresh simple-bar displays when a dispay is moved"
+
+osascript -e 'tell application id "tracesOf.Uebersicht" to refresh'
+
+echo "yabai configuration loaded.."
