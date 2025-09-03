@@ -1,0 +1,11 @@
+export ARCH=arm64
+export SUBARCH=arm64
+export PATH=$HOME/bin/android-ndk-r16b/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin:$PATH
+export PATH=$HOME/bin/android-ndk-r16b/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin:$PATH
+export CROSS_COMPILE=aarch64-linux-android-
+export CROSS_COMPILE_ARM32=arm-linux-androideabi-
+export LZ4_PREBUILTS_BIN=$HOME/bin/misc/linux-x86/lz4
+export DTC_PREBUILTS_BIN=$HOME/bin/misc/linux-x86/dtc
+export LIBUFDT_PREBUILTS_BIN=$HOME/bin/misc/linux-x86/libufdt
+export PATH=$LZ4_PREBUILTS_BIN:$DTC_PREBUILTS_BIN:$LIBUFDT_PREBUILTS_BIN:$PATH
+
