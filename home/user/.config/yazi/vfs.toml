@@ -1,0 +1,9 @@
+[services]
+
+server = {
+  type = "sftp",
+  host = "ip",
+  user = "id",
+  port = 22,
+  key_file = "~/.ssh/id_rsa"
+}
