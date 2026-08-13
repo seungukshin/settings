@@ -238,7 +238,8 @@
 
 ;; goggles
 (use-package goggles
-  :hook ((prog-mode text-mode) . goggles-mode)
+  :hook
+  ((prog-mode text-mode) . goggles-mode)
   :config
   (setq goggles-pulse t))
 
@@ -373,6 +374,8 @@
 ;; powerful completion style
 (use-package orderless
   :defer t
+  :hook
+  (completion-list-mode . consult-preview-at-point-mode)
   :config
   (setq completion-styles '(orderless)))
 
@@ -415,8 +418,6 @@
   ;; Optionally make narrowing help available in the minibuffer.
   ;; You may want to use `embark-prefix-help-command' or which-key instead.
   ;; (keymap-set consult-narrow-map (concat consult-narrow-key " ?") #'consult-narrow-help)
-
-  :hook (completion-list-mode . consult-preview-at-point-mode)
 
   :bind
   (;; C-c bindings in `mode-specific-map'
@@ -503,7 +504,8 @@
 ;; Consult users will also want the embark-consult package.
 (use-package embark-consult
   :ensure t ; only need to install it, embark loads it after consult if found
-  :hook (embark-collect-mode . consult-preview-at-point-mode))
+  :hook
+  (embark-collect-mode . consult-preview-at-point-mode))
 
 (use-package consult-dir
   :bind
@@ -516,7 +518,8 @@
   :straight (consult-cscope
 	     :host github
 	     :repo "seungukshin/consult-cscope")
-  :hook (c-mode-common . consult-cscope-mode)
+  :hook
+  (c-mode-common . consult-cscope-mode)
   :bind
   (:map c-mode-base-map
 	("C-c c s" . consult-cscope-symbol)
@@ -532,8 +535,8 @@
 ;; popup completion-at-point
 (use-package corfu
   :defer t
-  :init
-  (global-corfu-mode)
+  :hook
+  (prog-mode . corfu-mode)
   :custom
   (corfu-auto t)		; turns on auto-popup
   (corfu-auto-delay 0.1)	; instant popup reaction time
@@ -568,190 +571,6 @@
   (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; helm
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; helm
-(use-package helm
-  :disabled
-  :ensure t
-  :config
-  (helm-mode t)
-  (helm-autoresize-mode t)
-
-  (when (executable-find "curl")
-    (setq helm-net-prefer-curl t))
-
-  (setq helm-split-window-inside-p t
-	helm-move-to-line-cycle-in-source t
-	helm-ff-search-library-in-sexp t
-	helm-scroll-amount 8
-	helm-M-x-fuzzy-match t
-	helm-buffers-fuzzy-matching t
-	helm-recentf-fuzzy-match t
-	helm-ff-file-name-history-use-recentf t
-	helm-autoresize-max-height 0
-	helm-autoresize-min-height 20)
-
-  (global-unset-key (kbd "C-x c"))
-
-  (defun s/project-root ()
-    "return version managed root directory"
-    (cl-loop for dir in '(".git/" ".hg/" ".svn/" ".git")
-	     when (locate-dominating-file default-directory dir)
-	     return it))
-
-  (defun s/helm-fd-project-root ()
-    "find files on the project root"
-    (interactive)
-    (require 'helm-fd)
-    (let ((rootdir (s/project-root)))
-      (unless rootdir
-	(error "Could not find the project root. Create a git, hg or svn repository there first"))
-      (helm-fd-1 rootdir)))
-
-  (defun s/helm-fd-directory ()
-    "find files on the selected directory"
-    (interactive)
-    (require 'helm-fd)
-    (let ((directory
-	   (file-name-as-directory
-	    (read-directory-name "DefaultDirectory: "))))
-      (helm-fd-1 directory)))
-
-  (defun s/helm-fd-current-directory ()
-    "find files on the current directory"
-    (interactive)
-    (require 'helm-fd)
-    (helm-fd-1 default-directory))
-
-  :bind
-  (("C-c h"   . helm-command-prefix)
-   ("C-h"     . helm-command-prefix)
-   ("M-x"     . helm-M-x)
-   ("M-y"     . helm-show-kill-ring)
-   ("C-x b"   . helm-mini)
-   ("C-x C-f" . helm-find-files)
-   ("C-c e"   . helm-resume)
-   ("C-c f a"  . s/helm-fd-project-root)
-   ("C-c f d"  . s/helm-fd-directory)
-   ("C-c f c"  . s/helm-fd-current-directory)
-   :map helm-map
-   ("<tab>"   . helm-execute-persistent-action)
-   ("C-i"     . helm-execute-persistent-action)
-   ("C-z"     . helm-select-action)))
-
-;; helm-ag
-(use-package helm-ag
-  :disabled
-  :defer t
-  :config
-  (setq helm-ag-base-command "rg --vimgrep --no-heading --smart-case")
-  (setq helm-ag-insert-at-point 'symbol)
-  :bind
-  (("C-c r a" . helm-do-ag-project-root)
-   ("C-c r d" . helm-do-ag)
-   ("C-c r f" . helm-do-ag-this-file)
-   ("C-c r b" . helm-do-ag-buffers)
-   ("C-c r o" . helm-ag-pop-stack)))
-
-;; fzf
-(use-package fzf
-  :defer t
-  :config
-  (setq fzf/args "-x --color bw --print-query --margin=1,0 --no-hscroll"
-        fzf/executable "fzf"
-        fzf/git-grep-args "-i --line-number %s"
-        fzf/grep-command "rg --no-heading -nH"
-        fzf/position-bottom t
-        fzf/window-height 15)
-  :bind
-  ;; Don't forget to set keybinds!
-  )
-
-;; helm-swoop
-(use-package helm-swoop
-  :disabled
-  :defer t
-  :config
-  (setq helm-multi-swoop-edit-save t
-        helm-swoop-split-with-multiple-windows nil
-        helm-swoop-split-direction 'split-window-horizontally
-        helm-swoop-speed-or-color t
-        helm-swoop-move-to-line-cycle t
-        helm-swoop-use-line-number-face t
-        helm-swoop-use-fuzzy-match t)
-  :bind
-  (("C-c s s" . helm-swoop)
-   ("C-c s r" . helm-swoop-back-to-last-point)
-   ("C-c s m" . helm-multi-swoop)
-   ("C-c s a" . helm-multi-swoop-all))
-  (:map isearch-mode-map
-   ("C-i" . helm-swoop-from-isearch))
-  (:map helm-swoop-map
-   ("C-s" . helm-next-line)
-   ("C-r" . helm-previous-line)
-   ("C-m" . helm-multi-swoop-current-mode-from-helm-swoop)
-   ("C-a" . helm-multi-swoop-all-from-helm-swoop))
-  (:map helm-multi-swoop-map
-   ("C-s" . helm-next-line)
-   ("C-r" . helm-previous-line)))
-
-;; helm-google
-(use-package helm-google
-  :disabled
-  :defer t
-  :bind ("C-c w" . helm-google))
-
-;; xcscope
-(use-package xcscope
-  :disabled
-  :defer t)
-
-;; helm-cscope
-(use-package helm-cscope
-  :disabled
-  :defer t
-  :init
-  (add-hook 'c-mode-common-hook 'helm-cscope-mode)
-  :config
-  ;; disable auto database update
-  (setq cscope-option-do-not-update-database t)
-  :bind
-  (:map c-mode-base-map
-	("C-c c s" . helm-cscope-find-this-symbol)
-	("C-c c g" . helm-cscope-find-global-definition)
-	("C-c c d" . helm-cscope-find-called-this-function)
-	("C-c c c" . helm-cscope-find-calling-this-function)
-	("C-c c t" . helm-cscope-find-this-text-string)
-	("C-c c e" . helm-cscope-find-egrep-pattern)
-	("C-c c f" . helm-cscope-find-this-file)
-	("C-c c i" . helm-cscope-find-files-including-file)
-	("C-c c o" . helm-cscope-pop-mark)))
-
-;; global
-(use-package helm-gtags
-  :disabled
-  :defer t
-  :init
-  (add-hook 'c-mode-common-hook 'helm-gtags-mode)
-  (add-hook 'java-mode-hook 'helm-gtags-mode)
-  (add-hook 'ruby-mode-hook 'helm-gtags-mode)
-  (add-hook 'js-mode-hook 'helm-gtags-mode)
-  (add-hook 'typescript-mode-hook 'helm-gtags-mode)
-  :config
-  (custom-set-variables
-   '(helm-gtags-ignore-case t)
-   '(helm-gtags-display-style 'detail))
-  :bind
-  (:map c-mode-base-map
-	("C-c g s" . helm-gtags-find-symbol)
-	("C-c g g" . helm-gtags-find-tag)
-	("C-c g r" . helm-gtags-find-rtag)
-	("C-c g p" . helm-gtags-find-pattern)
-	("C-c g f" . helm-gtags-find-files)
-	("C-c g o" . helm-gtags-pop-stack)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; mini buffer and completion
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defalias 'yes-or-no-p 'y-or-n-p)		; yes/no to y/n
@@ -778,6 +597,10 @@
 ;; major mode
 (use-package emacs
   :straight (:type built-in)
+  :hook
+  ;; Auto parenthesis matching
+  ((prog-mode . electric-pair-mode)
+   (prog-mode . which-function-mode))
   :init
   ;; use treesitter enabled mode than normal mode
   (setq major-mode-remap-alist
@@ -791,11 +614,7 @@
 	  (dockerfile-mode . dockerfile-ts-mode)
 	  (yaml-mode . yaml-ts-mode)
 	  (toml-mode . toml-ts-mode)))
-  (add-to-list 'auto-mode-alist '("CMakeLists.txt" . cmake-ts-mode))
-  :hook
-  ;; Auto parenthesis matching
-  ((prog-mode . electric-pair-mode)
-   (prog-mode . which-function-mode)))
+  (add-to-list 'auto-mode-alist '("CMakeLists.txt" . cmake-ts-mode)))
 
 (use-package cc-mode
   :straight (:type built-in)
@@ -874,18 +693,19 @@
 (use-package dockerfile-ts-mode
   :straight (:type built-in)
   :defer t
-  :mode (("\\Dockerfile\\'" . dockerfile-ts-mode)
-	 ("\\.dockerignore\\'" . dockerfile-ts-mode)))
+  :mode
+  (("\\Dockerfile\\'" . dockerfile-ts-mode)
+   ("\\.dockerignore\\'" . dockerfile-ts-mode)))
 
 (use-package yaml-ts-mode
   :straight (:type built-in)
-  :mode "\\.ya?ml\\'"
-  :defer t)
+  :defer t
+  :mode "\\.ya?ml\\'")
 
 (use-package toml-ts-mode
   :straight (:type built-in)
-  :mode "\\.toml\\'"
-  :defer t)
+  :defer t
+  :mode "\\.toml\\'")
 
 (use-package markdown-mode
   :defer t)
@@ -893,13 +713,15 @@
 ;; indent guide
 (use-package highlight-indent-guides
   :defer t
+  :hook
+  (prog-mode . highlight-indent-guides-mode)
+  :init
+  (setq highlight-indent-guides-auto-enabled nil)
   :config
   (setq highlight-indent-guides-method 'character)
   (set-face-background 'highlight-indent-guides-odd-face "darkgray")
   (set-face-background 'highlight-indent-guides-even-face "dimgray")
-  (set-face-foreground 'highlight-indent-guides-character-face "dimgray")
-  :hook
-  (prog-mode . highlight-indent-guides-mode))
+  (set-face-foreground 'highlight-indent-guides-character-face "dimgray"))
 
 ;; folding
 (use-package hideshow
@@ -915,10 +737,10 @@
 ;; highlight
 (use-package highlight-thing
   :defer t
-  :config
-  (setq highlight-thing-what-thing 'symbol)
   :hook
-  (prog-mode . highlight-thing-mode))
+  (prog-mode . highlight-thing-mode)
+  :config
+  (setq highlight-thing-what-thing 'symbol))
 
 ;; jupyter
 (use-package jupyter
@@ -936,7 +758,6 @@
   :custom
   (eglot-send-changes-idle-time 0.1)
   (eglot-extend-to-xref t)			; activate Eglot in referenced non-project files
-
   :config
   (fset #'jsonrpc--log-event #'ignore)		; don't log every event
 
@@ -973,17 +794,19 @@
 ;; git-gutter
 (use-package git-gutter
   :ensure t
-  :config (global-git-gutter-mode t))
+  :config
+  (global-git-gutter-mode t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; org
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (when (display-graphic-p)
   (use-package org
-    :defer t
     :straight (:type built-in)
-    :hook ((org-mode . flyspell-mode)		; spell checking
-	   (org-mode . iscroll-mode))
+    :defer t
+    :hook
+    ((org-mode . flyspell-mode)			; spell checking
+     (org-mode . iscroll-mode))
     :custom-face
     ;; heading font size
     (org-level-1 ((t (:height 1.0))))
@@ -1210,7 +1033,8 @@
       ("C-c o d" . org-transclusion-detach))))
 
   (use-package svg-tag-mode
-    :hook (org-mode . svg-tag-mode)
+    :hook
+    (org-mode . svg-tag-mode)
     :config
     (defconst date-re "[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}")
     (defconst time-re "[0-9]\\{2\\}:[0-9]\\{2\\}")
@@ -1314,7 +1138,8 @@
 (use-package clipetty
   :if (not (display-graphic-p))
   :ensure t
-  :hook (after-init . global-clipetty-mode))
+  :hook
+  (after-init . global-clipetty-mode))
 
 (defun s/tmux (command &rest args)
   "Execute COMMAND in tmux"
@@ -1374,68 +1199,17 @@ but do not execute them."
 
 (use-package ghostel
   :defer t
-  :hook (ghostel-mode . (lambda ()
-			  (display-line-numbers-mode 0)
-			  (setq-local face-remapping-alist
-				      '((default :background "unspecified-bg")))
-			  (setq-local show-trailing-whitespace nil)))
+  :hook
+  (ghostel-mode . (lambda ()
+		    (display-line-numbers-mode 0)
+		    (setq-local face-remapping-alist
+				'((default :background "unspecified-bg")))
+		    (setq-local show-trailing-whitespace nil)))
   :custom
   (ghostel-term "xterm-256color")
   :bind
   (:map ghostel-mode-map
 	("C-c t" . ghostel-copy-mode)))
-
-(use-package vterm
-  :defer t
-  ;:ensure t
-  :hook (vterm-mode . (lambda ()
-			(display-line-numbers-mode 0)
-			(setq-local show-trailing-whitespace nil)))
-  :config
-  (setq vterm-max-scrollback 100000)
-  :bind
-  (:map vterm-mode-map
-	("C-c t" . vterm-copy-mode))
-;  :hook (vterm-mode . (lambda ()
-;			(set (make-local-variable 'buffer-face-mode-face)
-;			     '(:family "Inconsolata Nerd Font" :size 16 :height 16))
-;			'(add-text-properties '(line-spacing 0 line-height 1))
-;			(buffer-face-mode t)
-;			(setq-default line-spacing 0.0)
-;			(setq line-spacing 0.0
-;			      line-height 1.0)))
-;  :config
-;  (if (file-exists-p "/bin/zsh")
-;      (setq vterm-shell "/bin/zsh")
-;    (setq vterm-shell "/bin/bash"))
-;  (defun s/vterm-execute-current-line-or-region ()
-;    "Insert text of current line or region in vterm and execute."
-;    (interactive)
-;    (let* ((current-line (buffer-substring
-;                          (save-excursion
-;                            (beginning-of-line)
-;                            (point))
-;                          (save-excursion
-;                            (end-of-line)
-;                            (point))))
-;           (buf (current-buffer))
-;           (raw (string-trim
-;                     (if (use-region-p)
-;                         (buffer-substring (region-beginning) (region-end))
-;                       current-line)))
-;	   (command (replace-regexp-in-string "^$ " "" raw)))
-;      (unless (get-buffer vterm-buffer-name)
-;        (vterm))
-;      (display-buffer vterm-buffer-name t)
-;      (switch-to-buffer-other-window vterm-buffer-name)
-;      (vterm--goto-line -1)
-;      (vterm-send-string command t)
-;      (vterm-send-return)
-;      (switch-to-buffer-other-window buf)
-;      (when (featurep 'beacon)
-;        (beacon-blink))))
-;  :bind (("C-c v" . s/vterm-execute-current-line-or-region))
-  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; etc
@@ -1467,7 +1241,8 @@ but do not execute them."
 	      (ibuffer-vc-set-filter-groups-by-vc-root)
 	      (unless (eq ibuffer-sorting-mode 'alphabetic)
 		(ibuffer-do-srot-by-alphabetic))))
-  :bind ("C-x C-b" . 'ibuffer))
+  :bind
+  ("C-x C-b" . 'ibuffer))
 
 (use-package dired-rsync
   :demand t
@@ -1499,13 +1274,13 @@ but do not execute them."
 
 (use-package dirvish
   :defer t
-  :init
-  (dirvish-override-dired-mode)
   :hook
   ((dired-mode . (lambda ()
 		   (display-line-numbers-mode 0)))
    (dirvish-directory-view-mode . (lambda ()
 				    (display-line-numbers-mode 0))))
+  :init
+  (dirvish-override-dired-mode)
   :custom
   (dirvish-quick-access-entries
    (cond ((eq system-type 'windows-nt)
@@ -1642,31 +1417,14 @@ but do not execute them."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; email
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; mbsync
-(use-package mbsync
-  :defer t
-  :config
-  (when (eq system-type 'darwin)
-    (setenv "SASL_PATH" "/opt/homebrew/lib/sasl2"))
-  (setenv "GPG_TTY" (shell-command-to-string "tty"))
-  (setq epg-pinentry-mode 'loopback)
-  :hook (mbsync-exit-hook . gnus-group-get-new-news)
-  :bind
-  (:map gnus-group-mode-map
-	("f" . mbsync)))
-
-;; notmuch
-(use-package notmuch
-  :defer t
-  :commands notmuch)
-
 ;; gnus
 (use-package gnus
   :defer t
-  :hook (gnus-before-startup . (lambda ()
-				 (message "Caching pin...")
-				 (let ((epg-pinentry-mode 'loopback))
-				   (epa-decrypt-file "~/.mutt/id@gmail.com.gpg" "/dev/null"))))
+  :hook
+  (gnus-before-startup . (lambda ()
+			   (message "Caching pin...")
+			   (let ((epg-pinentry-mode 'loopback))
+			     (epa-decrypt-file "~/.mutt/seunguk.shin@arm.com.gpg" "/dev/null"))))
   :init
   (when (eq system-type 'darwin)
     (setenv "SASL_PATH" "/opt/homebrew/lib/sasl2"))
@@ -1913,8 +1671,9 @@ but do not execute them."
 	     :type git
 	     :host github
 	     :repo "canatella/xwwp")
-  :bind (:map xwidget-webkit-mode-map
-              ("v" . xwwp-follow-link)))
+  :bind
+  (:map xwidget-webkit-mode-map
+        ("v" . xwwp-follow-link)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; ai
