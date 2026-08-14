@@ -13,6 +13,17 @@ $ make olddefconfig
 
 $ LOCALVERSION=-rx-zerocopy-2 make -j 32 bindeb-pkg
 #+end_src
+* build emacs
+#+begin_src sh
+$ git clone https://git.savannah.gnu.org/git/emacs
+$ cd emacs
+
+$ ./autogen.sh
+$ ./configure --with-x-toolkit=no --with-tree-sitter --with-modules --with-native-compilation
+
+$ make -j bootstrap
+$ make -j
+#+end_src
 * flamegraph
 ** with perf
 #+begin_src sh
@@ -29,4 +40,201 @@ $ sudo profile-bpfcc -F 99 -K -f --stack-storage-size 131072 > output.txt
 
 # generate
 $ ./flamegraph.pl output.txt > output.svg
+#+end_src
+* kubectl
+** get pods list
+#+begin_src sh
+# default namespace
+$ kubectl get pods
+
+# a specific namespace
+$ kubectl get pods -n <namespace>
+#+end_src
+** get log
+#+begin_src sh
+# get log for a specific pod
+$ kubectl logs <pod> -n <namespace>
+* # a specific namespace
+#+begin_src sh
+$ kubectl logs -l control-plane=controller-manager -n <namespace>
+#+end_src
+* rsync
+** use wildcard
+#+begin_src sh
+$ rsync -Pavze ssh remote:~/src/*.log ./
+#+end_src
+** use wildcard in zsh (add quotes to prevent for zsh to expand wildcard)
+#+begin_src sh
+$ rsync -Pavze ssh remote:~/src/'*'.log ./
+#+end_src
+* monitor
+** ps
+#+begin_src sh
+$ ps -e -L -o user,pid,tid,ppid,psr,pcpu,comm,cmd | { head -1; grep -e spdk -e perf; }
+#+end_src
+*** -e: show all processes
+*** -L: include threads
+*** -o: output info.
+**** psr: cpu number
+**** comm: command
+**** cmd: command line command and arguments
+* git
+** reset working directory
+#+begin_src sh
+$ git reset --hard
+#+end_src
+** reset working directory with submodules
+#+begin_src sh
+$ git submodule deinit -f .
+$ git submodule update --init --recursive --checkout # "checkout" prevents "Skipping modules..."
+#+end_src
+* gerrit
+** install a commit hook
+#+begin_src sh
+$ mkdir -p `git rev-parse --git-dir`/hooks && curl -Lo `git rev-parse --git-dir`/hooks/commit-msg https://gerrit.oss.arm.com/tools/hooks/commit-msg && chmod +x `git rev-parse --git-dir`/hooks/commit-msg
+#+end_src
+** create a review
+#+begin_src sh
+$ git push `git remote get-url --push origin` HEAD:refs/for/<upstream_branch_name>
+#+end_src
+* cpu device
+** check cpu device
+#+begin_src sh
+$ lscpu
+$ sudo dmidecode -t processor
+#+end_src
+* memory device
+** check memory device version
+#+begin_src sh
+$ sudo dmidecode --type 17
+#+end_src
+** check memory device capacity
+#+begin_src sh
+$ lsmem
+#+end_src
+* storage device
+** check storage device hardware
+#+begin_src sh
+$ sudo lshw -c storage -businfo
+#+end_src
+** check storage device capacity
+#+begin_src sh
+$ lsblk
+#+end_src
+* network device
+** check cable status
+#+begin_src sh
+$ sudo ethtool -t eth0
+#+end_src
+*** ~Link Test~ should be 0 if the cable is connected
+*** ~Link Test~ should be 1 if the cable is not connected
+** check network device hardware
+#+begin_src sh
+$ sudo lshw -c network -businfo
+#+end_src
+** check nic speed
+#+begin_src sh
+$ ip addr
+$ ethtool eth0
+#+end_src
+** get ip from dhcp
+#+begin_src sh
+$ dhclient eth0 -v
+#+end_src
+* log
+** kernel log message
+#+begin_src sh
+$ sudo journalctl -k -f
+$ sudo dmesg -w
+#+end_src
+** service log message
+#+begin_src sh
+$ sudo journalctl -S today -t <service name>
+#+end_src
+* nvme
+** connect nvmf target
+#+begin_src sh
+$ sudo nvme connect -t tcp '--hostnqn=myhostnqn' -n "nqn.2016-06.io.spdk:cnode1" -a 10.169.206.104 -s 4420
+#+end_src
+** disconnect nvmf target
+#+begin_src sh
+$ sudo nvme disconnect --nqn=nqn.2016-06.io.spdk:cnode1
+#+end_src
+* perf
+** record trace
+#+begin_src sh
+$ sudo perf record --call-graph fp <cmd>
+#+end_src
+** parse trace
+#+begin_src sh
+$ sudo perf report --call-graph --stdio
+#+end_src
+* bmc
+** connect console
+#+begin_src sh
+$ ipmitool -C 3 -I lanplus -H <ip> -U <user> sol activate
+#+end_src
+** disconnect console
+#+begin_src sh
+$ ~.
+#+end_src
+* Serial Terminal
+** change serial terminal size
+#+begin_src sh
+# default geometry would be 80x23 or 80x24
+$ stty rows 33 cols 120
+#+end_src
+* Mac
+** create a symbolic link to app
+#+begin_src sh
+$ osascript -e 'tell application "Finder" to make alias file to posix file "/opt/homebrew/opt/emacs-plus@30/Emacs.app" at posix file "/Applications" with properties {name:"Emacs.app"}'
+#+end_src
+* Tmux
+** create new window and execute a command
+#+begin_src sh
+tmux new-window -t <session> -n <name> <cmd>
+#+end_src
+** do not close the window after the process is finished
+#+begin_src sh
+set-option -g remain-on-exit on
+#+end_src
+* Curl & registry
+#+begin_src sh
+# list repositories
+$ curl -sS http://localhost:5000/v2/_catalog
+
+# list tags
+$ curl -sS http://localhost:5000/v2/<repo>/tags/list
+
+# digest
+$ curl -H "Accept: application/vnd.oci.image.manifest.v1+json" -H "Accept: application/vnd.oci.image.index.v1+json" -w '%header{Docker-Content-Digest}' http://localhost:5000/v2/<repo>/manifests/<tag>
+
+# delete (REGISTRY_STORAGE_DELETE_ENABLED=true in registry)
+$ curl -sS -X DELETE http://localhost:5000/v2/<repo>/manifests/<digest>
+$ curl -sS -X DELETE http://localhost:5000/v2/<repo>/manifests/<tag>
+#+end_src
+* check neighbors in a network
+#+begin_src sh
+$ sudo lldpcli show neighbors
+#+end_src
+* setup impi for sol
+#+begin_src sh
+# check permission
+$ ipmitool -C 3 -I lanplus -H <BMC_IP> -U <user> -P <pass> user list 1
+ID  Name             Callin  Link Auth  IPMI Msg   Channel Priv Limit
+1                    true    false      false      Unknown (0x00)
+2   ADMIN            false   false      true       ADMINISTRATOR
+
+# enable sol
+$ ipmitool -C 3 -I lanplus -H <BMC_IP> -U <user> -P <pass> user enable 2
+$ ipmitool -C 3 -I lanplus -H <BMC_IP> -U <user> -P <pass> channel setaccess 1 2 callin=on ipmi=on link=pn privilege=4
+
+# check permission
+$ ipmitool -C 3 -I lanplus -H <BMC_IP> -U <user> -P <pass> user list 1
+ID  Name             Callin  Link Auth  IPMI Msg   Channel Priv Limit
+1                    true    false      false      Unknown (0x00)
+2   ADMIN            true    true       true       ADMINISTRATOR
+
+# sol
+$ ipmitool -I lanplus -H <BMC_IP> -U ADMIN -P <password> sol activate
 #+end_src
