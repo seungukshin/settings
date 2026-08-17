@@ -24,7 +24,7 @@ local mouseGlobal = require('mouse-global')
 local AppRemap = require('app-remap')
 
 --local Yabai = require('yabai/yabai')
-local AeroSpace = require('aerospace/aerospace')
+local AeroSpace = require('as-hs/aerospace/aerospace')
 
 -- change shift+space to option+space
 local remapIME = AppRemap:new('remapIME')

@@ -1,0 +1,3 @@
+[submodule "home/user/.hammerspoon/as-hs"]
+	path = home/user/.hammerspoon/as-hs
+	url = https://github.com/seungukshin/as-hs.git
